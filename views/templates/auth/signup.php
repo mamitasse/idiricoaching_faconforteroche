@@ -1,26 +1,61 @@
-<?php use function App\services\csrf_input; use function App\services\e; ?>
-<section class="card">
+<?php
+use function App\services\csrf_input;
+use function App\services\e;
+/** @var array $coaches */
+$title = 'Inscription';
+?>
+<section class="form-wrap">
   <h1>Inscription</h1>
-  <form method="post" action="<?= BASE_URL ?>?action=signupPost">
+
+  <form method="post" action="<?= BASE_URL ?>?action=signupPost" class="form">
     <?= csrf_input() ?>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label>Prénom<input name="first_name" required></label>
-      <label>Nom<input name="last_name" required></label>
+
+    <div class="grid-2">
+      <label>Prénom
+        <input name="first_name" required>
+      </label>
+      <label>Nom
+        <input name="last_name" required>
+      </label>
     </div>
-    <label>Email<input type="email" name="email" required></label>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label>Téléphone<input name="phone" placeholder="06 12 34 56 78"></label>
-      <label>Adresse<input name="address" placeholder="N° et rue, CP Ville"></label>
+
+    <div class="grid-2">
+      <label>Email
+        <input type="email" name="email" required>
+      </label>
+      <label>Confirmation email
+        <input type="email" name="email_confirm" required>
+      </label>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <label>Mot de passe<input type="password" name="password" required></label>
-      <label>Âge<input type="number" name="age" min="12" max="100"></label>
+
+    <div class="grid-2">
+      <label>Téléphone
+        <input name="phone" placeholder="06 12 34 56 78" pattern="^\+?[0-9 \-\.]{9,20}$">
+      </label>
+      <label>Adresse
+        <input name="address" placeholder="N° et rue, CP Ville" minlength="5" maxlength="255">
+      </label>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+
+    <div class="grid-2">
+      <label>Mot de passe
+        <input type="password" name="password" required>
+      </label>
+      <label>Confirmation mot de passe
+        <input type="password" name="password_confirm" required>
+      </label>
+    </div>
+
+    <div class="grid-3">
+      <label>Âge
+        <input type="number" name="age" min="12" max="100">
+      </label>
       <label>Genre
         <select name="gender">
-          <option value="">—</option><option value="female">Femme</option>
-          <option value="male">Homme</option><option value="other">Autre</option>
+          <option value="">—</option>
+          <option value="female">Femme</option>
+          <option value="male">Homme</option>
+          <option value="other">Autre</option>
         </select>
       </label>
       <label>Rôle
@@ -30,6 +65,7 @@
         </select>
       </label>
     </div>
+
     <?php if (!empty($coaches)): ?>
     <div id="coach-chooser">
       <label>Choisir un coach (obligatoire pour adhérent)
@@ -42,12 +78,17 @@
       </label>
     </div>
     <?php endif; ?>
-    <button class="btn btn-primary" type="submit">Créer mon compte</button>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Créer mon compte</button>
+    </div>
   </form>
 </section>
+
 <script>
   const roleSelect = document.getElementById('role-select');
   const coachChooser = document.getElementById('coach-chooser');
-  function toggleCoach(){ if(!coachChooser) return; coachChooser.style.display = (roleSelect.value==='coach')?'none':'block'; }
-  roleSelect?.addEventListener('change', toggleCoach); toggleCoach();
+  function toggleCoach(){ if (!coachChooser) return; coachChooser.style.display = (roleSelect.value === 'coach') ? 'none' : 'block'; }
+  roleSelect?.addEventListener('change', toggleCoach);
+  toggleCoach();
 </script>

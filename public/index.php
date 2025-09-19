@@ -12,11 +12,14 @@ try {
     switch ($action) {
         // Pages publiques
         case 'home':           (new HomeController())->index(); break;
-        case 'connexion':      (new AuthController())->loginForm(); break;
-        case 'loginPost':      (new AuthController())->loginPost(); break;
-        case 'inscription':    (new AuthController())->signupForm(); break;
-        case 'signupPost':     (new AuthController())->signupPost(); break;
-        case 'logout':         (new AuthController())->logout(); break;
+    case 'connexion':    (new \App\controllers\AuthController())->loginForm();  break;
+case 'loginPost':    (new \App\controllers\AuthController())->loginPost();  break;
+
+case 'inscription':  (new \App\controllers\AuthController())->signupForm(); break;
+case 'signupPost':   (new \App\controllers\AuthController())->signupPost(); break;
+
+case 'logout':       (new \App\controllers\AuthController())->logout();     break;
+
 
         // Dashboards
         case 'adherentDashboard': (new DashboardController())->adherent(); break;
