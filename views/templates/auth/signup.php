@@ -1,8 +1,7 @@
 <?php
 use function App\services\csrf_input;
 use function App\services\e;
-/** @var array $coaches */
-$title = 'Inscription';
+/** @var \App\models\UserEntity[] $coachEntities */
 ?>
 <section class="form-wrap">
   <h1>Inscription</h1>
@@ -30,10 +29,10 @@ $title = 'Inscription';
 
     <div class="grid-2">
       <label>Téléphone
-        <input name="phone" placeholder="06 12 34 56 78" pattern="^\+?[0-9 \-\.]{9,20}$">
+        <input name="phone" placeholder="06 12 34 56 78" pattern="^\+?[0-9 \-\.]{9,20}$" required>
       </label>
       <label>Adresse
-        <input name="address" placeholder="N° et rue, CP Ville" minlength="5" maxlength="255">
+        <input name="address" placeholder="N° et rue, CP Ville" minlength="5" maxlength="255" required>
       </label>
     </div>
 
@@ -41,7 +40,7 @@ $title = 'Inscription';
       <label>Mot de passe
         <input type="password" name="password" required>
       </label>
-      <label>Confirmation mot de passe
+      <label>Confirmation
         <input type="password" name="password_confirm" required>
       </label>
     </div>
@@ -50,6 +49,7 @@ $title = 'Inscription';
       <label>Âge
         <input type="number" name="age" min="12" max="100">
       </label>
+
       <label>Genre
         <select name="gender">
           <option value="">—</option>
@@ -58,6 +58,7 @@ $title = 'Inscription';
           <option value="other">Autre</option>
         </select>
       </label>
+
       <label>Rôle
         <select name="role" id="role-select">
           <option value="adherent">Adhérent</option>
@@ -66,29 +67,24 @@ $title = 'Inscription';
       </label>
     </div>
 
-    <?php if (!empty($coaches)): ?>
     <div id="coach-chooser">
       <label>Choisir un coach (obligatoire pour adhérent)
         <select name="coach_id">
           <option value="">— Sélectionner —</option>
-          <?php foreach ($coaches as $c): ?>
-            <option value="<?= (int)$c['id'] ?>"><?= e($c['first_name'].' '.$c['last_name']) ?></option>
+          <?php foreach ($coachEntities as $e): ?>
+            <option value="<?= (int)$e->getId() ?>"><?= e($e->getFullName()) ?></option>
           <?php endforeach; ?>
         </select>
       </label>
     </div>
-    <?php endif; ?>
 
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">Créer mon compte</button>
-    </div>
+    <button class="btn btn-primary" type="submit">Créer mon compte</button>
   </form>
 </section>
 
 <script>
   const roleSelect = document.getElementById('role-select');
   const coachChooser = document.getElementById('coach-chooser');
-  function toggleCoach(){ if (!coachChooser) return; coachChooser.style.display = (roleSelect.value === 'coach') ? 'none' : 'block'; }
-  roleSelect?.addEventListener('change', toggleCoach);
-  toggleCoach();
+  function toggleCoach(){ coachChooser.style.display = (roleSelect.value==='coach') ? 'none' : 'block'; }
+  roleSelect?.addEventListener('change', toggleCoach); toggleCoach();
 </script>
