@@ -1,7 +1,18 @@
 <?php
+declare(strict_types=1);
+/**
+ * Page d’inscription “version avant” adaptée :
+ * - Double email + double mot de passe
+ * - Sélection du rôle
+ * - Liste des coachs si fournie
+ *
+ * Variables attendues :
+ * @var \App\models\UserEntity[] $coachEntities  (optionnel : liste des coachs)
+ */
 use function App\services\csrf_input;
-use function App\services\e;
-/** @var \App\models\UserEntity[] $coachEntities */
+use function App\services\escapeHtml;
+
+$coachEntities = $coachEntities ?? [];
 ?>
 <section class="form-wrap">
   <h1>Inscription</h1>
@@ -40,7 +51,7 @@ use function App\services\e;
       <label>Mot de passe
         <input type="password" name="password" required>
       </label>
-      <label>Confirmation
+      <label>Confirmation mot de passe
         <input type="password" name="password_confirm" required>
       </label>
     </div>
@@ -67,24 +78,38 @@ use function App\services\e;
       </label>
     </div>
 
-    <div id="coach-chooser">
-      <label>Choisir un coach (obligatoire pour adhérent)
-        <select name="coach_id">
-          <option value="">— Sélectionner —</option>
-          <?php foreach ($coachEntities as $e): ?>
-            <option value="<?= (int)$e->getId() ?>"><?= e($e->getFullName()) ?></option>
-          <?php endforeach; ?>
-        </select>
-      </label>
-    </div>
+    <?php if (!empty($coachEntities)): ?>
+      <div id="coach-chooser">
+        <label>Choisir un coach (obligatoire pour adhérent)
+          <select name="coach_id">
+            <option value="">— Sélectionner —</option>
+            <?php foreach ($coachEntities as $coachEntity): ?>
+              <option value="<?= (int)$coachEntity->getId() ?>">
+                <?= escapeHtml($coachEntity->getFullName()) ?>
+              </option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+      </div>
+    <?php endif; ?>
 
-    <button class="btn btn-primary" type="submit">Créer mon compte</button>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Créer mon compte</button>
+    </div>
   </form>
 </section>
 
 <script>
-  const roleSelect = document.getElementById('role-select');
-  const coachChooser = document.getElementById('coach-chooser');
-  function toggleCoach(){ coachChooser.style.display = (roleSelect.value==='coach') ? 'none' : 'block'; }
-  roleSelect?.addEventListener('change', toggleCoach); toggleCoach();
+  // Affiche/masque le sélecteur de coach selon le rôle
+  (function(){
+    const roleSelect   = document.getElementById('role-select');
+    const coachChooser = document.getElementById('coach-chooser');
+    if(!roleSelect || !coachChooser) return;
+
+    function toggleCoach(){
+      coachChooser.style.display = (roleSelect.value === 'coach') ? 'none' : 'block';
+    }
+    roleSelect.addEventListener('change', toggleCoach);
+    toggleCoach();
+  })();
 </script>

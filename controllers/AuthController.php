@@ -4,138 +4,227 @@ declare(strict_types=1);
 namespace App\controllers;
 
 use App\models\UserManager;
-use App\models\UserEntity;
+use App\models\UserEntity;     // entité utilisateur (fortement typée)
 use App\views\View;
 use function App\services\flash;
-use function App\services\csrf_verify;
 
+/**
+ * Contrôleur d’authentification (mentor-style)
+ * - camelCase
+ * - noms de variables explicites
+ * - uniquement les méthodes orientées ENTITÉS (plus de findByEmail/getById)
+ */
 final class AuthController
 {
-    private function redirect(string $path): void
+    /* ====================== Helpers ====================== */
+
+    /** Redirige vers une route relative au site (préfixée par BASE_URL). */
+    private function redirectTo(string $relativePath): void
     {
-        header('Location: ' . BASE_URL . $path);
+        header('Location: ' . BASE_URL . $relativePath);
         exit;
     }
 
-    private function csrfOk(): bool
+    /**
+     * Vérifie le jeton CSRF (compat : nouvelle et ancienne fonction).
+     * Retourne true si le token est valide.
+     */
+    private function isCsrfValid(): bool
     {
-        if (\function_exists('\\App\\services\\csrf_check')) {
-            return \App\services\csrf_check();
+        $postedToken = $_POST['_token'] ?? null;
+
+        if (function_exists('\App\services\csrfVerify')) {
+            return \App\services\csrfVerify($postedToken);
         }
-        return csrf_verify($_POST['_token'] ?? null);
+        if (function_exists('\App\services\csrf_verify')) {
+            return \App\services\csrf_verify($postedToken);
+        }
+        // Si aucun helper n’existe, on rejette par sécurité
+        return false;
     }
 
-    public function loginForm(): void
+    /** Stocke l’utilisateur authentifié en session à partir d’une ENTITÉ. */
+    private function storeAuthenticatedUserInSession(UserEntity $userEntity): void
     {
-        View::render('auth/login', ['title' => 'Connexion']);
+        $_SESSION['user'] = [
+            'id'         => (int) $userEntity->getId(),
+            'first_name' => (string) $userEntity->getFirstName(),
+            'last_name'  => (string) $userEntity->getLastName(),
+            'email'      => (string) $userEntity->getEmail(),
+            'role'       => (string) ($userEntity->getRole() ?? 'adherent'),
+            'coach_id'   => $userEntity->getCoachId() !== null ? (int) $userEntity->getCoachId() : null,
+        ];
     }
 
-    public function signupForm(): void
+    /** Redirige vers le dashboard selon le rôle. */
+    private function redirectAfterSuccessfulLogin(): void
     {
-        $um = new UserManager();
-        $coachEntities = $um->coachesEntities(); // ENTITÉS directes pour la vue
+        $role = (string)($_SESSION['user']['role'] ?? 'adherent');
+        $destination = ($role === 'coach') ? 'coachDashboard' : 'adherentDashboard';
+        $this->redirectTo('?action=' . $destination);
+    }
 
-        View::render('auth/signup', [
-            'title'          => 'Inscription',
-            'coachEntities'  => $coachEntities, // <--- on passera les entités au template
+    /* ====================== Formulaires (GET) ====================== */
+
+    /** GET ?action=connexion — Affiche la page de connexion. */
+    public function showLoginForm(): void
+    {
+        View::render('templates/auth/login', ['title' => 'Connexion']);
+    }
+
+    /** GET ?action=inscription — Affiche la page d’inscription. */
+    public function showSignupForm(): void
+    {
+        $userManager = new UserManager();
+
+        // On passe la liste des coachs en ENTITÉS
+        $coachEntityList = $userManager->coachesEntities();
+
+        View::render('templates/auth/signup', [
+            'title'         => 'Inscription',
+            'coachEntities' => $coachEntityList,
         ]);
     }
 
-    public function loginPost(): void
+    /* ====================== Traitements (POST) ====================== */
+
+    /** POST ?action=handleLoginPost — Authentifie l’utilisateur. */
+    public function handleLoginPost(): void
     {
-        if (!$this->csrfOk()) { flash('error','Jeton CSRF invalide.'); $this->redirect('?action=connexion'); }
-
-        $email = trim((string)($_POST['email'] ?? ''));
-        $pass  = (string)($_POST['password'] ?? '');
-        if ($email === '' || $pass === '') {
-            flash('error','Email et mot de passe sont requis.');
-            $this->redirect('?action=connexion');
+        if (!$this->isCsrfValid()) {
+            flash('error', 'Jeton CSRF invalide.');
+            $this->redirectTo('?action=connexion');
         }
 
-        $um = new UserManager();
-        $ue = $um->findEntityByEmail($email); // ENTITÉ
-        if (!$ue) { flash('error','Identifiants invalides.'); $this->redirect('?action=connexion'); }
+        $emailAddress  = trim((string)($_POST['email'] ?? ''));
+        $plainPassword = (string)($_POST['password'] ?? '');
 
-        $hash = $ue->getPasswordHash();
-        if ($hash === '' || !password_verify($pass, $hash)) {
-            flash('error','Identifiants invalides.');
-            $this->redirect('?action=connexion');
+        if ($emailAddress === '' || $plainPassword === '') {
+            flash('error', 'Email et mot de passe sont requis.');
+            $this->redirectTo('?action=connexion');
         }
 
-        if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
-            $um->updatePasswordHash((int)$ue->getId(), password_hash($pass, PASSWORD_DEFAULT));
+        $userManager = new UserManager();
+        $userEntity  = $userManager->findEntityByEmail($emailAddress);
+
+        if (!$userEntity instanceof UserEntity) {
+            flash('error', 'Identifiants invalides.');
+            $this->redirectTo('?action=connexion');
         }
 
-        session_regenerate_id(true);
-        $_SESSION['user'] = [
-            'id'         => (int)$ue->getId(),
-            'first_name' => $ue->getFirstName(),
-            'last_name'  => $ue->getLastName(),
-            'email'      => $ue->getEmail(),
-            'role'       => $ue->getRole() ?? 'adherent',
-            'coach_id'   => $ue->getCoachId(),
-        ];
+        // Vérification du mot de passe hashé (champ password_hash en BDD)
+        $storedPasswordHash = (string)$userEntity->getPasswordHash();
+        $isPasswordValid = false;
 
-        $dest = ($_SESSION['user']['role'] === 'coach') ? 'coachDashboard' : 'adherentDashboard';
-        $this->redirect('?action='.$dest);
+        if ($storedPasswordHash !== '' && password_verify($plainPassword, $storedPasswordHash)) {
+            $isPasswordValid = true;
+
+            // Rehash si l'algo par défaut a changé (sécurité)
+            if (password_needs_rehash($storedPasswordHash, PASSWORD_DEFAULT)) {
+                $userManager->updatePasswordHash((int)$userEntity->getId(), password_hash($plainPassword, PASSWORD_DEFAULT));
+            }
+        } else {
+            // Compatibilité legacy (si un champ password en clair existait encore côté entité)
+            if (method_exists($userEntity, 'getPassword') && $userEntity->getPassword() !== null) {
+                if (hash_equals((string)$userEntity->getPassword(), $plainPassword)) {
+                    $isPasswordValid = true;
+                    // Conversion immédiate vers password_hash
+                    $userManager->updatePasswordHash((int)$userEntity->getId(), password_hash($plainPassword, PASSWORD_DEFAULT));
+                }
+            }
+        }
+
+        if (!$isPasswordValid) {
+            flash('error', 'Identifiants invalides.');
+            $this->redirectTo('?action=connexion');
+        }
+
+        // OK → session + redirection
+        $this->storeAuthenticatedUserInSession($userEntity);
+        $this->redirectAfterSuccessfulLogin();
     }
 
-    public function signupPost(): void
+    /** POST ?action=handleSignupPost — Crée un compte + connecte l’utilisateur. */
+    public function handleSignupPost(): void
     {
-        if (!$this->csrfOk()) { flash('error','Jeton CSRF invalide.'); $this->redirect('?action=inscription'); }
-
-        if (($_POST['email'] ?? '') !== ($_POST['email_confirm'] ?? '')) {
-            flash('error','Les emails ne correspondent pas.');
-            $this->redirect('?action=inscription');
-        }
-        if (($_POST['password'] ?? '') !== ($_POST['password_confirm'] ?? '')) {
-            flash('error','Les mots de passe ne correspondent pas.');
-            $this->redirect('?action=inscription');
-        }
-        if (($_POST['role'] ?? 'adherent') === 'adherent' && empty($_POST['coach_id'])) {
-            flash('error','Veuillez sélectionner un coach.');
-            $this->redirect('?action=inscription');
+        if (!$this->isCsrfValid()) {
+            flash('error', 'Jeton CSRF invalide.');
+            $this->redirectTo('?action=inscription');
         }
 
-        $data = [
+        // Récupération / validations simples
+        $emailAddress        = trim((string)($_POST['email'] ?? ''));
+        $emailAddressRepeat  = trim((string)($_POST['email_confirm'] ?? ''));
+        $plainPassword       = (string)($_POST['password'] ?? '');
+        $plainPasswordRepeat = (string)($_POST['password_confirm'] ?? '');
+        $selectedRole        = (string)($_POST['role'] ?? 'adherent');
+        $selectedCoachIdStr  = (string)($_POST['coach_id'] ?? '');
+
+        if ($emailAddress === '' || $plainPassword === '') {
+            flash('error', 'Email et mot de passe sont requis.');
+            $this->redirectTo('?action=inscription');
+        }
+        if ($emailAddress !== $emailAddressRepeat) {
+            flash('error', 'Les emails ne correspondent pas.');
+            $this->redirectTo('?action=inscription');
+        }
+        if ($plainPassword !== $plainPasswordRepeat) {
+            flash('error', 'Les mots de passe ne correspondent pas.');
+            $this->redirectTo('?action=inscription');
+        }
+        if ($selectedRole === 'adherent' && $selectedCoachIdStr === '') {
+            flash('error', 'Veuillez sélectionner un coach.');
+            $this->redirectTo('?action=inscription');
+        }
+
+        // Prépare les données pour le manager (il fera le hash)
+        $userData = [
             'first_name' => trim((string)($_POST['first_name'] ?? '')),
             'last_name'  => trim((string)($_POST['last_name'] ?? '')),
-            'email'      => trim(strtolower((string)($_POST['email'] ?? ''))),
-            'password'   => (string)($_POST['password'] ?? ''), // hashé dans UserManager::create()
+            'email'      => strtolower($emailAddress),
+            'password'   => $plainPassword, // UserManager::create() fera password_hash(...)
             'phone'      => trim((string)($_POST['phone'] ?? '')),
             'address'    => trim((string)($_POST['address'] ?? '')),
             'age'        => ($_POST['age'] ?? '') !== '' ? (int)$_POST['age'] : null,
             'gender'     => (string)($_POST['gender'] ?? ''),
-            'role'       => (string)($_POST['role'] ?? 'adherent'),
-            'coach_id'   => ($_POST['coach_id'] ?? '') !== '' ? (int)$_POST['coach_id'] : null,
+            'role'       => $selectedRole,
+            'coach_id'   => $selectedCoachIdStr !== '' ? (int)$selectedCoachIdStr : null,
         ];
 
-        $um    = new UserManager();
-        $newId = (int)$um->create($data);
-        if ($newId <= 0) { flash('error','Impossible de créer le compte (email déjà utilisé ?).'); $this->redirect('?action=inscription'); }
+        $userManager = new UserManager();
+        $newUserId   = $userManager->create($userData);
 
-        $ue = $um->findEntityById($newId); // ENTITÉ
-        if ($ue) {
-            session_regenerate_id(true);
-            $_SESSION['user'] = [
-                'id'         => (int)$ue->getId(),
-                'first_name' => $ue->getFirstName(),
-                'last_name'  => $ue->getLastName(),
-                'email'      => $ue->getEmail(),
-                'role'       => $ue->getRole() ?? 'adherent',
-                'coach_id'   => $ue->getCoachId(),
-            ];
+        if ($newUserId <= 0) {
+            flash('error', 'Impossible de créer le compte (email peut-être déjà utilisé ?).');
+            $this->redirectTo('?action=inscription');
         }
 
-        flash('success','Bienvenue ! Votre compte a bien été créé.');
-        $dest = ($_SESSION['user']['role'] === 'coach') ? 'coachDashboard' : 'adherentDashboard';
-        $this->redirect('?action='.$dest);
+        // Récupère l’entité créée et connecte l’utilisateur
+        $newUserEntity = $userManager->findEntityById($newUserId);
+        if ($newUserEntity instanceof UserEntity) {
+            $this->storeAuthenticatedUserInSession($newUserEntity);
+        } else {
+            // Cas extrêmement rare : sécurité pour éviter une session vide
+            flash('error', 'Création OK mais lecture du compte impossible (incohérence).');
+            $this->redirectTo('?action=connexion');
+        }
+
+        flash('success', 'Bienvenue ! Votre compte a bien été créé.');
+        $this->redirectAfterSuccessfulLogin();
     }
 
-    public function logout(): void
+    /** GET ?action=logout — Déconnecte l’utilisateur. */
+    public function logoutUser(): void
     {
         unset($_SESSION['user']);
         session_regenerate_id(true);
-        $this->redirect('');
+        $this->redirectTo('');
     }
+
+    /* ============ Alias compatibles avec tes anciennes routes ============ */
+    public function loginForm(): void  { $this->showLoginForm(); }
+    public function signupForm(): void { $this->showSignupForm(); }
+    public function loginPost(): void  { $this->handleLoginPost(); }
+    public function signupPost(): void { $this->handleSignupPost(); }
+    public function logout(): void     { $this->logoutUser(); }
 }

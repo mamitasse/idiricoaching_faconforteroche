@@ -1,45 +1,92 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/../config/autoload.php';
-require __DIR__ . '/../config/_config.php';
+/**
+ * Front Controller
+ * ----------------
+ * - Point d’entrée unique de l’application
+ * - Charge la config + autoload
+ * - Lit "action" dans l’URL et route vers la bonne méthode contrôleur
+ */
 
-use App\controllers\{HomeController, AuthController, DashboardController, CreneauController};
+require_once __DIR__ . '/../config/autoload.php';
 
-$action = $_GET['action'] ?? 'home';
+use App\controllers\HomeController;
+use App\controllers\AuthController;
+use App\controllers\DashboardController;
+use App\controllers\CreneauController;
+use App\controllers\ContactController; // <— CamelCase correct
 
-try {
-    switch ($action) {
-        // Pages publiques
-        case 'home':           (new HomeController())->index(); break;
-    case 'connexion':    (new \App\controllers\AuthController())->loginForm();  break;
-case 'loginPost':    (new \App\controllers\AuthController())->loginPost();  break;
-
-case 'inscription':  (new \App\controllers\AuthController())->signupForm(); break;
-case 'signupPost':   (new \App\controllers\AuthController())->signupPost(); break;
-
-case 'logout':       (new \App\controllers\AuthController())->logout();     break;
-
-
-        // Dashboards
-        case 'adherentDashboard': (new DashboardController())->adherent(); break;
-        case 'coachDashboard':    (new DashboardController())->coach(); break;
-
-        // Créneaux / Réservations
-        case 'creneauReserve':            (new CreneauController())->reserve(); break;
-        case 'reservationCancel':         (new CreneauController())->reservationCancel(); break;
-        case 'reservationCancelByCoach':  (new CreneauController())->reservationCancelByCoach(); break;
-        case 'creneauBlock':              (new CreneauController())->block(); break;
-        case 'creneauUnblock':            (new CreneauController())->unblock(); break;             // POST (coach)
-
-        default:
-            http_response_code(404);
-            echo "404";
+// ---- Charge les helpers (fonctions) si présents ----
+$helpersCandidates = [
+    __DIR__ . '/../services/utils.php',
+];
+foreach ($helpersCandidates as $file) {
+    if (is_file($file)) {
+        require_once $file;
+        break;
     }
-} catch (Throwable $e) {
-    if (IN_DEV) { throw $e; }
-    http_response_code(500);
-    echo "Erreur interne.";
 }
 
+// Table de routage: action -> [Classe, méthode]
+$routes = [
+    // Pages publiques
+    ''         => [HomeController::class, 'showHomePage'],
+    'home'     => [HomeController::class, 'showHomePage'],
+    'services' => [HomeController::class, 'showServicesPage'],
+    'nadia'    => [HomeController::class, 'showNadiaPage'],
+    'sabrina'  => [HomeController::class, 'showSabrinaPage'],
 
+    // Contact (form + envoi)
+    'contact'     => [ContactController::class, 'showContactForm'],
+    'contactPost' => [ContactController::class, 'handleContactPost'],
+
+    // Authentification
+    'connexion'   => [AuthController::class, 'showLoginForm'],
+    'loginPost'   => [AuthController::class, 'handleLoginPost'],
+    'inscription' => [AuthController::class, 'showSignupForm'],
+    'signupPost'  => [AuthController::class, 'handleSignupPost'],
+    'logout'      => [AuthController::class, 'logout'],
+
+    // Dashboards
+    'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
+    'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
+
+    // Créneaux / Réservations
+    'creneauReserve'           => [CreneauController::class, 'reserve'],
+    'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
+    'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
+    'slotBlock'                => [CreneauController::class, 'block'],
+    'slotUnblock'              => [CreneauController::class, 'unblock'],
+];
+
+// Récupère l'action demandée (ex: ?action=connexion)
+$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
+if (!isset($routes[$action])) {
+    $action = ''; // route par défaut (home)
+}
+
+[$controllerClass, $methodName] = $routes[$action];
+
+// Sécurité: message clair si l’autoload ne trouve pas la classe
+if (!class_exists($controllerClass)) {
+    http_response_code(500);
+    echo "<h1>Erreur serveur</h1>
+          <p>Contrôleur introuvable : {$controllerClass}.<br>
+          Vérifie l’autoload (config/autoload.php), le namespace et le chemin du fichier.</p>";
+    exit;
+}
+
+// Instancie le contrôleur
+$controllerInstance = new $controllerClass();
+
+// Sécurité: message clair si la méthode n’existe pas
+if (!is_callable([$controllerInstance, $methodName])) {
+    http_response_code(500);
+    echo "<h1>Erreur serveur</h1>
+          <p>Méthode introuvable : {$controllerClass}::{$methodName}()</p>";
+    exit;
+}
+
+// Exécute l’action
+$controllerInstance->{$methodName}();

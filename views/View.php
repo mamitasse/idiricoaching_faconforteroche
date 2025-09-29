@@ -4,55 +4,71 @@ declare(strict_types=1);
 namespace App\views;
 
 use RuntimeException;
+use function App\services\consume_flash;
 
-if (!defined('APP_ROOT')) { // sécurité si autoload non chargé
-    define('APP_ROOT', dirname(__DIR__));
-}
-const VIEWS_ROOT = APP_ROOT . '/views';
-
+/**
+ * View
+ * ----
+ * - render('home', ['title'=>'Accueil']) rend la vue /views/home.php
+ *   à l’intérieur du layout /views/templates/layouts/main.php
+ * - Pas de dépendance à des constantes de chemin : on se base
+ *   sur __DIR__ (qui pointe sur /views).
+ */
 final class View
 {
     /**
-     * Rend une vue et l'enveloppe dans le layout views/templates/layouts/main.php
-     * $view = chemin relatif sous views/templates (ex: "auth/signup", "home")
+     * Rend une vue "nom" dans le layout principal.
+     * @param string $viewName   ex: 'home', 'auth/login', 'dashboard/coach'
+     * @param array  $data       variables passées à la vue (extraites en variables locales)
      */
-    public static function render(string $view, array $vars = [], ?string $layout = 'layouts/main'): void
+    public static function render(string $viewName, array $data = []): void
     {
-        $viewFile = self::resolveViewPath($view);
-        if (!is_file($viewFile)) {
-            throw new RuntimeException("View file not found: {$viewFile}");
-        }
+        // 1) Récupère les messages flash (et les vide)
+        $flashes = consume_flash();
 
-        // Variables pour la vue
-        extract($vars, EXTR_SKIP);
+        // 2) Prépare les variables pour la vue
+        $title = $data['title'] ?? 'Idiri Coaching';
 
-        // Flashes dispo dans le layout
-        $flashes = \App\services\consume_flash();
-
-        // Rendu partiel → $content
+        // 3) Capture le contenu de la vue
         ob_start();
-        require $viewFile;
+        // On n’écrase pas les variables existantes
+        extract($data, EXTR_SKIP);
+        $viewPath = self::resolveViewPath($viewName);
+        require $viewPath;
         $content = ob_get_clean();
 
-        // Layout
-        if ($layout) {
-            $layoutFile = self::resolveLayoutPath($layout);
-            if (!is_file($layoutFile)) {
-                throw new RuntimeException("Layout not found: {$layoutFile}");
-            }
-            require $layoutFile;
-        } else {
-            echo $content;
+        // 4) Injecte dans le layout
+        $layoutPath = self::resolveLayoutPath();
+        require $layoutPath;
+    }
+
+    /** Retourne le chemin absolu du fichier de vue demandé. */
+    private static function resolveViewPath(string $viewName): string
+    {
+        // __DIR__ = .../views
+        $viewsBaseDir = rtrim(str_replace('\\', '/', __DIR__), '/') . '/';
+
+        // Sécurise le nom (évite '../')
+        $safeName = ltrim($viewName, '/');
+        $safeName = str_replace(['..\\','../'], '', $safeName);
+
+        $fullPath = $viewsBaseDir . $safeName . '.php';
+        if (!is_file($fullPath)) {
+            throw new RuntimeException('View file not found: ' . $fullPath);
         }
+        return $fullPath;
     }
 
-    private static function resolveViewPath(string $view): string
+    /** Retourne le chemin absolu du layout principal. */
+    private static function resolveLayoutPath(): string
     {
-        return VIEWS_ROOT . '/templates/' . trim($view, '/\\') . '.php';
-    }
+        // /views/templates/layouts/main.php
+        $viewsBaseDir = rtrim(str_replace('\\', '/', __DIR__), '/') . '/';
+        $layout = $viewsBaseDir . 'templates/layouts/main.php';
 
-    private static function resolveLayoutPath(string $layout): string
-    {
-        return VIEWS_ROOT . '/templates/' . trim($layout, '/\\') . '.php';
+        if (!is_file($layout)) {
+            throw new RuntimeException('Layout file not found: ' . $layout);
+        }
+        return $layout;
     }
 }

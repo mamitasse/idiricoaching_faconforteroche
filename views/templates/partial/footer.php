@@ -1,5 +1,10 @@
 <?php
 declare(strict_types=1);
+/**
+ * Footer responsive + liens sociaux
+ * - Les images doivent exister dans public/assets/images/
+ * - Le style est dans assets/style.css (classes .social-media, .social-block, etc.)
+ */
 ?>
 <footer class="social-media">
   <div class="social-block social-linksnadia">
