@@ -6,34 +6,39 @@ namespace App\controllers;
 use App\views\View;
 use App\models\UserManager;
 use function App\services\flash;
+use function App\services\csrfVerify;
+use function App\services\csrf_verify;   // alias legacy
+use function App\services\sendMailSmtp;  // helper SMTP (PHPMailer)
 
 /**
  * ContactController (mentor-style)
- * -------------------------------
- * - Affiche le formulaire de contact
- * - Valide et traite l'envoi
- * - En PROD : essai d’envoi réel (PHPMailer si disponible, sinon mail())
- * - En DEV  : écriture dans un log + message succès (pour éviter les problèmes de mail local)
+ * --------------------------------
+ * - GET  showContactForm   : affiche le formulaire
+ * - POST handleContactPost : valide + envoie le message
+ *
+ * En DEV (IN_DEV=true) :
+ *   - si SMTP configuré -> envoi réel via PHPMailer
+ *   - sinon             -> écrit dans logs/mail.log et affiche "succès"
+ *
+ * En PROD (IN_DEV=false) :
+ *   - si SMTP configuré -> envoi réel via PHPMailer
+ *   - sinon             -> fallback mail() (si serveur OK)
  *
  * Vue attendue : views/templates/contact.php
- *   Le contrôleur passe : ['title' => 'Contact', 'coachEntities' => [...]]
  */
 final class ContactController
 {
-    /* =========================================================
+    /* ============================
      * Pages (GET)
-     * ======================================================= */
+     * ========================== */
 
-    /**
-     * Affiche le formulaire de contact.
-     * On fournit la liste des coachs pour la liste déroulante.
-     */
+    /** Affiche le formulaire de contact. */
     public function showContactForm(): void
     {
         $userManager   = new UserManager();
         $coachEntities = [];
 
-        // Idéalement, on récupère les ENTITÉS des coachs (plus riche, typed getters)
+        // Idéalement : ENTITÉS (getId(), getFullName(), getEmail(), …)
         if (method_exists($userManager, 'coachesEntities')) {
             $coachEntities = $userManager->coachesEntities();
         } elseif (method_exists($userManager, 'listEntitiesByRole')) {
@@ -46,23 +51,25 @@ final class ContactController
         ]);
     }
 
-    /* =========================================================
+    /* ============================
      * Traitement (POST)
-     * ======================================================= */
+     * ========================== */
 
-    /**
-     * Traite la soumission du formulaire de contact.
-     * Valide les champs, construit le message, et tente l'envoi.
-     */
+    /** Soumission du formulaire de contact. */
     public function handleContactPost(): void
     {
-        // 1) CSRF
-        if (!$this->isCsrfValid($_POST['_token'] ?? null)) {
-            flash('error', 'Jeton de sécurité invalide. Merci de réessayer.');
+        // 1) CSRF compatible (camelCase ET snake_case)
+        $postedToken = $_POST['_token'] ?? null;
+        $csrfIsValid = function_exists('\App\services\csrfVerify')
+            ? csrfVerify($postedToken)
+            : (function_exists('\App\services\csrf_verify') ? csrf_verify($postedToken) : false);
+
+        if (!$csrfIsValid) {
+            flash('error', 'Jeton de sécurité invalide.');
             $this->redirectTo('?action=contact');
         }
 
-        // 2) Récupération + normalisation
+        // 2) Normalisation des champs
         $firstName      = trim((string)($_POST['first_name'] ?? ''));
         $lastName       = trim((string)($_POST['last_name'] ?? ''));
         $emailAddress   = trim((string)($_POST['email'] ?? ''));
@@ -71,175 +78,115 @@ final class ContactController
         $coachIdString  = (string)($_POST['coach_id'] ?? '');
         $messageContent = trim((string)($_POST['message'] ?? ''));
 
-        // 3) Validation simple (tu peux renforcer selon ton besoin)
+        // 3) Validation simple
         $validationErrors = [];
-
-        if ($firstName === '')       { $validationErrors[] = 'Le prénom est requis.'; }
-        if ($lastName === '')        { $validationErrors[] = 'Le nom est requis.'; }
-        if ($emailAddress === '' ||
-            !filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
+        if ($firstName === '') { $validationErrors[] = 'Le prénom est requis.'; }
+        if ($lastName === '')  { $validationErrors[] = 'Le nom est requis.'; }
+        if ($emailAddress === '' || !filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
             $validationErrors[] = 'Un email valide est requis.';
         }
-        if ($phoneNumber === '')     { $validationErrors[] = 'Le téléphone est requis.'; }
-        if ($postalAddress === '')   { $validationErrors[] = "L'adresse postale est requise."; }
-        if ($coachIdString === '' ||
-            !ctype_digit($coachIdString) || (int)$coachIdString <= 0) {
+        if ($phoneNumber === '')   { $validationErrors[] = 'Le téléphone est requis.'; }
+        if ($postalAddress === '') { $validationErrors[] = "L'adresse postale est requise."; }
+        if ($coachIdString === '' || !ctype_digit($coachIdString) || (int)$coachIdString <= 0) {
             $validationErrors[] = 'Veuillez choisir un coach.';
         }
-        if ($messageContent === '')  { $validationErrors[] = 'Le message est requis.'; }
+        if ($messageContent === '') { $validationErrors[] = 'Le message est requis.'; }
 
         if (!empty($validationErrors)) {
-            foreach ($validationErrors as $errorMsg) {
-                flash('error', $errorMsg);
+            foreach ($validationErrors as $msg) {
+                flash('error', $msg);
             }
             $this->redirectTo('?action=contact');
         }
 
-        // 4) Récupère l'adresse e-mail du coach
+        // 4) Email du coach à partir de l’entité
         $coachId     = (int)$coachIdString;
         $userManager = new UserManager();
-        $coachEmail  = null;
-
-        if (method_exists($userManager, 'findEntityById')) {
-            $coachEntity = $userManager->findEntityById($coachId);
-            $coachEmail  = $coachEntity ? (string)$coachEntity->getEmail() : null;
-        } elseif (method_exists($userManager, 'getById')) {
-            $coachRow   = $userManager->getById($coachId);
-            $coachEmail = is_array($coachRow) ? (string)($coachRow['email'] ?? '') : null;
-        }
+        $coachEntity = $userManager->findEntityById($coachId);
+        $coachEmail  = $coachEntity ? (string)$coachEntity->getEmail() : null;
 
         if (!$coachEmail || !filter_var($coachEmail, FILTER_VALIDATE_EMAIL)) {
-            flash('error', "Impossible de trouver l'e-mail du coach sélectionné.");
+            flash('error', "Impossible de trouver l’e-mail du coach sélectionné.");
             $this->redirectTo('?action=contact');
         }
 
-        // 5) Prépare le message / destinataires
-        $siteAdminEmail = 'idiricoaching56@gmail.com'; // e-mail “principal”
+        // 5) Prépare contenu
+        $siteAdminEmail = 'idiricoaching56@gmail.com';
         $recipients     = [$coachEmail, $siteAdminEmail];
 
-        $subject = sprintf(
-            'Nouveau contact — %s %s',
-            $firstName,
-            $lastName
-        );
-
-        // Corps HTML
-        $htmlBody = $this->buildHtmlBody(
-            $firstName,
-            $lastName,
-            $emailAddress,
-            $phoneNumber,
-            $postalAddress,
-            $messageContent
-        );
-
-        // Corps texte brut (fallback)
-        $textBody = $this->buildTextBody(
-            $firstName,
-            $lastName,
-            $emailAddress,
-            $phoneNumber,
-            $postalAddress,
-            $messageContent
+        $subject = sprintf('Nouveau contact — %s %s', $firstName, $lastName);
+        [$htmlBody, $textBody] = $this->buildBodies(
+            $firstName, $lastName, $emailAddress, $phoneNumber, $postalAddress, $messageContent
         );
 
         // 6) Envoi
-        $sendOk = $this->sendEmail($recipients, $subject, $htmlBody, $textBody, $emailAddress);
-        if ($sendOk) {
-            flash('success', 'Votre message a bien été envoyé. Merci !');
-        } else {
-            flash('error', "Un problème est survenu lors de l'envoi. Merci de réessayer.");
-        }
+        $sendSucceeded = $this->sendEmail($recipients, $subject, $htmlBody, $textBody, $emailAddress);
+
+        flash(
+            $sendSucceeded ? 'success' : 'error',
+            $sendSucceeded
+                ? 'Votre message a bien été envoyé. Merci !'
+                : "Un problème est survenu lors de l'envoi. Merci de réessayer."
+        );
 
         $this->redirectTo('?action=contact');
     }
 
-    /* =========================================================
+    /* ============================
      * Helpers internes
-     * ======================================================= */
+     * ========================== */
 
-    /** Redirection vers une route relative au site (préfixée par BASE_URL). */
+    /** Redirection relative au site (préfixée par BASE_URL). */
     private function redirectTo(string $relativePath): void
     {
         header('Location: ' . BASE_URL . $relativePath);
         exit;
     }
 
-    /**
-     * Vérifie le CSRF en restant compatible avec les deux variantes que tu as :
-     * - App\services\csrfVerify($token)   (mentor)
-     * - App\services\csrf_verify($token)  (legacy)
-     */
-    private function isCsrfValid(?string $postedToken): bool
-    {
-        if (function_exists('\App\services\csrfVerify')) {
-            return \App\services\csrfVerify($postedToken);
-        }
-        if (function_exists('\App\services\csrf_verify')) {
-            return \App\services\csrf_verify($postedToken);
-        }
-        // Par sécurité : si aucune fonction, on refuse
-        return false;
-    }
-
-    /**
-     * Construit le HTML du message.
-     */
-    private function buildHtmlBody(
+    /** Construit [htmlBody, textBody]. */
+    private function buildBodies(
         string $firstName,
         string $lastName,
         string $emailAddress,
         string $phoneNumber,
         string $postalAddress,
         string $messageContent
-    ): string {
-        $e = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+    ): array {
+        $esc = static fn(string $s): string => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 
-        return '
+        $html = '
             <h2>Nouveau message de contact</h2>
             <ul>
-              <li><strong>Nom :</strong> ' . $e($lastName) . '</li>
-              <li><strong>Prénom :</strong> ' . $e($firstName) . '</li>
-              <li><strong>Email :</strong> ' . $e($emailAddress) . '</li>
-              <li><strong>Téléphone :</strong> ' . $e($phoneNumber) . '</li>
-              <li><strong>Adresse :</strong> ' . $e($postalAddress) . '</li>
+              <li><strong>Nom :</strong> ' . $esc($lastName) . '</li>
+              <li><strong>Prénom :</strong> ' . $esc($firstName) . '</li>
+              <li><strong>Email :</strong> ' . $esc($emailAddress) . '</li>
+              <li><strong>Téléphone :</strong> ' . $esc($phoneNumber) . '</li>
+              <li><strong>Adresse :</strong> ' . $esc($postalAddress) . '</li>
             </ul>
             <p><strong>Message :</strong></p>
-            <p>' . nl2br($e($messageContent)) . '</p>
+            <p>' . nl2br($esc($messageContent)) . '</p>
         ';
+
+        $text = "Nouveau message de contact\n"
+              . "------------------------\n"
+              . "Nom       : {$lastName}\n"
+              . "Prénom    : {$firstName}\n"
+              . "Email     : {$emailAddress}\n"
+              . "Téléphone : {$phoneNumber}\n"
+              . "Adresse   : {$postalAddress}\n\n"
+              . "Message :\n{$messageContent}\n";
+
+        return [$html, $text];
     }
 
     /**
-     * Construit une version texte du message (fallback si HTML non supporté).
-     */
-    private function buildTextBody(
-        string $firstName,
-        string $lastName,
-        string $emailAddress,
-        string $phoneNumber,
-        string $postalAddress,
-        string $messageContent
-    ): string {
-        return "Nouveau message de contact\n"
-             . "------------------------\n"
-             . "Nom       : {$lastName}\n"
-             . "Prénom    : {$firstName}\n"
-             . "Email     : {$emailAddress}\n"
-             . "Téléphone : {$phoneNumber}\n"
-             . "Adresse   : {$postalAddress}\n\n"
-             . "Message :\n{$messageContent}\n";
-    }
-
-    /**
-     * Envoi de l’e-mail.
-     * - En DEV  : écrit un log et renvoie true.
-     * - En PROD : tente PHPMailer si présent (libs/phpmailer/*), sinon mail().
+     * Envoi d’e-mail, avec logique DEV/PROD & SMTP.
+     * - Si SMTP (constantes SMTP_*) est configuré → envoi via PHPMailer.
+     * - Sinon :
+     *    - DEV  → écrit dans logs/mail.log et retourne true
+     *    - PROD → tente mail() natif
      *
-     * @param string[] $recipients Liste d’emails destinataires
-     * @param string   $subject    Sujet
-     * @param string   $htmlBody   Message HTML
-     * @param string   $textBody   Message texte (alt)
-     * @param string   $replyTo    Email de la personne qui contacte (pour répondre)
+     * @param string[] $recipients
      */
     private function sendEmail(
         array $recipients,
@@ -248,78 +195,51 @@ final class ContactController
         string $textBody,
         string $replyTo
     ): bool {
-        // DEV : journalise plutôt que d'envoyer réellement
-        if (defined('IN_DEV') && IN_DEV === true) {
-            $logDir  = dirname(__DIR__) . '/logs';
-            $logFile = $logDir . '/mail.log';
-            if (!is_dir($logDir)) { @mkdir($logDir, 0777, true); }
+        // Lire TOUTES les constantes via defined()+constant() (évite les "undefined constant")
+        $smtpHost   = defined('SMTP_HOST')      ? (string) constant('SMTP_HOST')      : '';
+        $smtpUser   = defined('SMTP_USER')      ? (string) constant('SMTP_USER')      : '';
+        $smtpPass   = defined('SMTP_PASS')      ? (string) constant('SMTP_PASS')      : '';
+        $smtpFrom   = defined('SMTP_FROM')      ? (string) constant('SMTP_FROM')      : '';
+        $smtpName   = defined('SMTP_FROM_NAME') ? (string) constant('SMTP_FROM_NAME') : 'Idiri Coaching';
 
+        $smtpIsConfigured = ($smtpHost !== '' && $smtpUser !== '' && $smtpPass !== '' && $smtpFrom !== '');
+
+        // 1) SMTP dispo -> envoi via PHPMailer (helper)
+        if ($smtpIsConfigured) {
+            $allSucceeded = true;
+            foreach ($recipients as $toAddress) {
+                [$ok, $error] = sendMailSmtp($toAddress, $subject, $htmlBody, $textBody, $smtpFrom, $smtpName);
+                if (!$ok) {
+                    $allSucceeded = false;
+                    error_log('[SMTP] send failed to ' . $toAddress . ' : ' . $error);
+                }
+            }
+            return $allSucceeded;
+        }
+
+        // 2) Pas de SMTP
+        if (defined('IN_DEV') && IN_DEV === true) {
+            // DEV => on loggue et on dit "OK"
+            $projectRoot = dirname(__DIR__);
+            $logDir      = $projectRoot . '/logs';
+            $logFile     = $logDir . '/mail.log';
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0777, true);
+            }
             $log = "---- " . date('Y-m-d H:i:s') . " ----\n"
                  . "TO      : " . implode(', ', $recipients) . "\n"
                  . "SUBJECT : " . $subject . "\n"
                  . "REPLYTO : " . $replyTo . "\n"
                  . "BODY(TXT): \n" . $textBody . "\n\n";
-
             @file_put_contents($logFile, $log, FILE_APPEND);
             return true;
         }
 
-        // PROD : tente PHPMailer si présent (libs/phpmailer/*.php), sinon mail()
-        $phpMailerRoot = dirname(__DIR__) . '/libs/phpmailer';
-        $phpMailerOk   = is_file($phpMailerRoot . '/PHPMailer.php')
-                      && is_file($phpMailerRoot . '/SMTP.php')
-                      && is_file($phpMailerRoot . '/Exception.php');
-
-        if ($phpMailerOk) {
-            // Chargement manuel des classes (pas de composer)
-            require_once $phpMailerRoot . '/PHPMailer.php';
-            require_once $phpMailerRoot . '/SMTP.php';
-            require_once $phpMailerRoot . '/Exception.php';
-
-            try {
-                $mailer = new \PHPMailer\PHPMailer\PHPMailer(true);
-
-                // Par défaut, on passe par la fonction mail() du serveur.
-                // (Si tu veux du SMTP, configure ici : Host, Username, Password, etc.)
-                $mailer->isMail();
-
-                // From & Reply-To
-                $host     = parse_url((string)(BASE_URL ?? ''), PHP_URL_HOST) ?: 'idiricoaching.local';
-                $fromMail = 'no-reply@' . $host;
-                $mailer->setFrom($fromMail, 'Idiri Coaching');
-                if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
-                    $mailer->addReplyTo($replyTo);
-                }
-
-                // Destinataires
-                foreach ($recipients as $email) {
-                    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                        $mailer->addAddress($email);
-                    }
-                }
-
-                // Contenu
-                $mailer->Subject = $subject;
-                $mailer->isHTML(true);
-                $mailer->Body    = $htmlBody;
-                $mailer->AltBody = $textBody;
-
-                $mailer->send();
-                return true;
-            } catch (\Throwable $e) {
-                // Fallback mail() si PHPMailer échoue
-                return $this->sendViaNativeMail($recipients, $subject, $htmlBody, $textBody, $replyTo);
-            }
-        }
-
-        // Pas de PHPMailer : fallback mail()
+        // 3) PROD sans SMTP -> tentative via mail() natif
         return $this->sendViaNativeMail($recipients, $subject, $htmlBody, $textBody, $replyTo);
     }
 
-    /**
-     * Envoi via la fonction mail() native de PHP (HTML multipart/alternative).
-     * Attention : sur Windows/XAMPP, mail() n'enverra souvent rien sans config SMTP locale.
-     */
+    /** Fallback via mail() (HTML multipart/alternative). */
     private function sendViaNativeMail(
         array $recipients,
         string $subject,
@@ -328,14 +248,12 @@ final class ContactController
         string $replyTo
     ): bool {
         $toHeader = implode(',', $recipients);
+        $boundary = '=_Boundary_' . md5((string) microtime(true));
 
-        // Génère une boundary unique pour multipart/alternative
-        $boundary = '=_Boundary_' . md5((string)microtime(true));
-
-        $host     = parse_url((string)(BASE_URL ?? ''), PHP_URL_HOST) ?: 'idiricoaching.local';
+        $host     = parse_url((string) (BASE_URL ?? ''), PHP_URL_HOST) ?: 'idiricoaching.local';
         $fromMail = 'no-reply@' . $host;
 
-        $headers  = [];
+        $headers   = [];
         $headers[] = 'MIME-Version: 1.0';
         $headers[] = 'From: Idiri Coaching <' . $fromMail . '>';
         if (filter_var($replyTo, FILTER_VALIDATE_EMAIL)) {
@@ -343,7 +261,6 @@ final class ContactController
         }
         $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
 
-        // Corps multipart: partie texte puis HTML
         $body  = '';
         $body .= '--' . $boundary . "\r\n";
         $body .= "Content-Type: text/plain; charset=UTF-8\r\n\r\n";

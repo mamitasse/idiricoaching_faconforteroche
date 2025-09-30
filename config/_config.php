@@ -42,3 +42,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_name('idiricoaching_sess');
     session_start();
 }
+
+if (is_file(__DIR__ . '/_config.local.php')) {
+    require __DIR__ . '/_config.local.php';
+}

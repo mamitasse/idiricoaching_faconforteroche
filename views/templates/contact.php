@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
-
+use function App\services\csrfinput;
+use function App\services\escapeHtml;
 /**
  * Vue : Formulaire de contact
  * ---------------------------
