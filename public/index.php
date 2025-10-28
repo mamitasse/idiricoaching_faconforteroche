@@ -2,11 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Front Controller
- * ----------------
- * - Point d’entrée unique de l’application
- * - Charge la config + autoload
- * - Lit "action" dans l’URL et route vers la bonne méthode contrôleur
+ * Front Controller (point d’entrée unique)
+ * ----------------------------------------
+ * - Charge l’autoload + la config
+ * - Lit le paramètre ?action dans l’URL
+ * - Route vers la bonne méthode de contrôleur
+ * - Convention : CamelCase partout (classes, méthodes publiques)
  */
 
 require_once __DIR__ . '/../config/autoload.php';
@@ -15,20 +16,26 @@ use App\controllers\HomeController;
 use App\controllers\AuthController;
 use App\controllers\DashboardController;
 use App\controllers\CreneauController;
-use App\controllers\ContactController; // <— CamelCase correct
+use App\controllers\ContactController;
+use App\controllers\AdherentController;
 
-// ---- Charge les helpers (fonctions) si présents ----
+
+// ------------------------------------------------------------
+// Helpers (fonctions utilitaires) si disponibles
+// ------------------------------------------------------------
 $helpersCandidates = [
     __DIR__ . '/../services/utils.php',
 ];
-foreach ($helpersCandidates as $file) {
-    if (is_file($file)) {
-        require_once $file;
+foreach ($helpersCandidates as $helpersFile) {
+    if (is_file($helpersFile)) {
+        require_once $helpersFile;
         break;
     }
 }
 
-// Table de routage: action -> [Classe, méthode]
+// ------------------------------------------------------------
+// Table de routage : action -> [Classe, méthode]
+// ------------------------------------------------------------
 $routes = [
     // Pages publiques
     ''         => [HomeController::class, 'showHomePage'],
@@ -37,7 +44,7 @@ $routes = [
     'nadia'    => [HomeController::class, 'showNadiaPage'],
     'sabrina'  => [HomeController::class, 'showSabrinaPage'],
 
-    // Contact (form + envoi)
+    // Contact (formulaire + envoi)
     'contact'     => [ContactController::class, 'showContactForm'],
     'contactPost' => [ContactController::class, 'handleContactPost'],
 
@@ -48,45 +55,58 @@ $routes = [
     'signupPost'  => [AuthController::class, 'handleSignupPost'],
     'logout'      => [AuthController::class, 'logout'],
 
-    // Dashboards
-    'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
-    'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
+    /// Dashboards
+'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
+'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
 
-    // Créneaux / Réservations
-    'creneauReserve'           => [CreneauController::class, 'reserve'],
-    'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
-    'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
-    'slotBlock'                => [CreneauController::class, 'block'],
-    'slotUnblock'              => [CreneauController::class, 'unblock'],
+// --- Coach : nouvelles pages ---
+'coachAdherents'       => [DashboardController::class, 'showCoachAdherentsList'],
+'coachAdherentProfile' => [AdherentController::class, 'showAdherentProfile'],
+
+// Créneaux / Réservations
+'creneauReserve'           => [CreneauController::class, 'reserve'],
+'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
+'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
+'slotBlock'                => [CreneauController::class, 'block'],
+'slotUnblock'              => [CreneauController::class, 'unblock'],
+
 ];
 
-// Récupère l'action demandée (ex: ?action=connexion)
-$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
-if (!isset($routes[$action])) {
-    $action = ''; // route par défaut (home)
+// ------------------------------------------------------------
+// Lecture de l’action demandée (ex: ?action=connexion)
+// ------------------------------------------------------------
+$requestedAction = isset($_GET['action']) ? (string)$_GET['action'] : '';
+
+// Si l’action n’existe pas, on retombe sur la home
+if (!array_key_exists($requestedAction, $routes)) {
+    $requestedAction = '';
 }
 
-[$controllerClass, $methodName] = $routes[$action];
+// Résolution de la paire [Classe, Méthode]
+[$controllerClassName, $controllerMethodName] = $routes[$requestedAction];
 
-// Sécurité: message clair si l’autoload ne trouve pas la classe
-if (!class_exists($controllerClass)) {
+// ------------------------------------------------------------
+// Sécurité : contrôleur et méthode doivent exister
+// ------------------------------------------------------------
+if (!class_exists($controllerClassName)) {
     http_response_code(500);
     echo "<h1>Erreur serveur</h1>
-          <p>Contrôleur introuvable : {$controllerClass}.<br>
-          Vérifie l’autoload (config/autoload.php), le namespace et le chemin du fichier.</p>";
+          <p>Contrôleur introuvable : <code>{$controllerClassName}</code>.<br>
+          Vérifie l’autoload (<code>config/autoload.php</code>), le namespace et le chemin du fichier.</p>";
     exit;
 }
 
-// Instancie le contrôleur
-$controllerInstance = new $controllerClass();
+$controllerInstance = new $controllerClassName();
 
-// Sécurité: message clair si la méthode n’existe pas
-if (!is_callable([$controllerInstance, $methodName])) {
+if (!is_callable([$controllerInstance, $controllerMethodName])) {
     http_response_code(500);
     echo "<h1>Erreur serveur</h1>
-          <p>Méthode introuvable : {$controllerClass}::{$methodName}()</p>";
+          <p>Méthode introuvable : <code>{$controllerClassName}::{$controllerMethodName}()</code>.<br>
+          Mets à jour la table de routage ou crée la méthode demandée.</p>";
     exit;
 }
 
-// Exécute l’action
-$controllerInstance->{$methodName}();
+// ------------------------------------------------------------
+// Exécution de l’action
+// ------------------------------------------------------------
+$controllerInstance->{$controllerMethodName}();

@@ -73,6 +73,39 @@ use function App\services\e;
     <?php endif; ?>
   </div>
 </section>
+<!-- Liste des adhérents rattachés (version liste déroulante) -->
+<section class="card">
+  <h2>Mes adhérents</h2>
+
+  <?php if (empty($adherents)): ?>
+    <p class="subtitle">Aucun adhérent rattaché pour le moment.</p>
+  <?php else: ?>
+    <form method="get" action="<?= BASE_URL ?>" class="form" style="max-width:520px; display:grid; grid-template-columns:1fr auto; gap:10px;">
+      <!-- route qui affiche le profil -->
+      <input type="hidden" name="action" value="adherentProfile">
+
+      <label style="margin:0;">
+        Choisir un adhérent
+        <select name="id" onchange="this.form.submit()">
+          <option value="">— Sélectionner —</option>
+          <?php foreach ($adherents as $adherentEntity): ?>
+            <option value="<?= (int)$adherentEntity->getId() ?>">
+              <?= htmlspecialchars($adherentEntity->getLastName().' '.$adherentEntity->getFirstName(), ENT_QUOTES, 'UTF-8') ?>
+              — <?= htmlspecialchars($adherentEntity->getEmail(), ENT_QUOTES, 'UTF-8') ?>
+              <button class="btn" type="submit"> <a class="btn" href="<?= BASE_URL ?>?action=coachAdherentProfile&id=<?= (int)$adherentEntity->getId() ?> "> Voir le profil </a></button> 
+             
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+
+      <!-- Si tu préfères éviter l’auto-submit, commente onchange=... ci-dessus
+           et décommente ce bouton : -->
+     
+    </form>
+  <?php endif; ?>
+</section>
+
 
 <section class="card">
   <h2>Réservations du jour</h2>

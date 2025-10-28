@@ -31,18 +31,27 @@ declare(strict_types=1);
 
   <!-- Navigation principale -->
   <nav id="site-menu" class="nav">
-    <a href="<?= BASE_URL ?>">Accueil</a>
-    <a href="<?= BASE_URL ?>?action=services">Services</a>
-    <a href="<?= BASE_URL ?>?action=nadia">Nadia</a>
-    <a href="<?= BASE_URL ?>?action=sabrina">Sabrina</a>
-    <a href="<?= BASE_URL ?>?action=contact">Contact</a>
+  <a href="<?= BASE_URL ?>">Accueil</a>
+  <a href="<?= BASE_URL ?>?action=services">Services</a>
+  <a href="<?= BASE_URL ?>?action=nadia">Nadia</a>
+  <a href="<?= BASE_URL ?>?action=sabrina">Sabrina</a>
+  <a href="<?= BASE_URL ?>?action=contact">Contact</a>
+
+  <?php if (empty($_SESSION['user'])): ?>
+    <!-- Visiteurs : on propose inscription + connexion -->
     <a href="<?= BASE_URL ?>?action=inscription">Inscription</a>
-    <?php if (!empty($_SESSION['user'])): ?>
-      <a href="<?= BASE_URL ?>?action=logout">Déconnexion</a>
+    <a href="<?= BASE_URL ?>?action=connexion">Connexion</a>
+  <?php else: ?>
+    <!-- Connectés : lien vers le bon dashboard + déconnexion -->
+    <?php if (($_SESSION['user']['role'] ?? '') === 'coach'): ?>
+      <a href="<?= BASE_URL ?>?action=coachDashboard">Mon dashboard</a>
     <?php else: ?>
-      <a href="<?= BASE_URL ?>?action=connexion">Connexion</a>
+      <a href="<?= BASE_URL ?>?action=adherentDashboard">Mon dashboard</a>
     <?php endif; ?>
-  </nav>
+    <a href="<?= BASE_URL ?>?action=logout">Déconnexion</a>
+  <?php endif; ?>
+</nav>
+
 </header>
 
 <!-- ===== Contenu principal ===== -->

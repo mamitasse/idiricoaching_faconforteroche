@@ -61,7 +61,7 @@ public function showNadiaPage(): void
     /** Page Sabrina (si tu as la vue) */
     public function showSabrinaPage(): void
     {
-        View::render('template/sabrina', [
+        View::render('templates/sabrina', [
             'title' => 'Coach Sabrina',
         ]);
     }
