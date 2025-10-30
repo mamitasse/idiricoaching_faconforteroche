@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\models;
@@ -189,7 +190,6 @@ final class ReservationManager extends DBManager
 
             $database->commit();
             return $newReservationId;
-
         } catch (\Throwable $throwable) {
             if ($database->inTransaction()) {
                 $database->rollBack();
@@ -197,6 +197,39 @@ final class ReservationManager extends DBManager
             throw $throwable;
         }
     }
+
+    /**
+     * Détails complets d’une réservation pour emails (coach/adherent + slot).
+     * Retourne null si introuvable.
+     * @return array<string,mixed>|null
+     */
+    public function emailPayload(int $reservationId): ?array
+    {
+        $sql = "
+      SELECT
+        r.id, r.status, r.paid,
+        s.date, s.start_time, s.end_time,
+        a.id   AS adherent_id,
+        a.email AS adherent_email,
+        a.first_name AS adherent_first,
+        a.last_name  AS adherent_last,
+        c.id   AS coach_id,
+        c.email AS coach_email,
+        c.first_name AS coach_first,
+        c.last_name  AS coach_last
+      FROM reservations r
+      JOIN slots s ON s.id = r.slot_id
+      JOIN users a ON a.id = r.adherent_id
+      JOIN users c ON c.id = r.coach_id
+      WHERE r.id = :rid
+      LIMIT 1
+    ";
+        $st = $this->db()->prepare($sql);
+        $st->execute([':rid' => $reservationId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+        return $row ?: null;
+    }
+
 
     /**
      * Annule une réservation (adhérent ou coach).
@@ -229,7 +262,7 @@ final class ReservationManager extends DBManager
 
             // Règle des 36h : si activée, on refuse l’annulation trop tardive
             if ($enforce36HoursRule) {
-                $slotStartDateTime = new DateTime(($reservationRow['date'] ?? '').' '.($reservationRow['start_time'] ?? '00:00:00'));
+                $slotStartDateTime = new DateTime(($reservationRow['date'] ?? '') . ' ' . ($reservationRow['start_time'] ?? '00:00:00'));
                 $limitDateTime     = (new DateTime())->modify('+36 hours');
 
                 if ($slotStartDateTime <= $limitDateTime) {
@@ -252,7 +285,6 @@ final class ReservationManager extends DBManager
 
             $database->commit();
             return true;
-
         } catch (\Throwable $throwable) {
             if ($database->inTransaction()) {
                 $database->rollBack();
@@ -260,6 +292,65 @@ final class ReservationManager extends DBManager
             throw $throwable;
         }
     }
+
+    /**
+     * Retourne toutes les réservations à venir pour un coach,
+     * à partir d'une date/heure de référence ($fromDateTime).
+     *
+     * Format de retour (tableaux prêts pour la vue) :
+     * [
+     *   [
+     *     'id'              => int,            // id reservation
+     *     'date'            => 'YYYY-MM-DD',   // date du créneau
+     *     'start_time'      => 'HH:MM:SS',
+     *     'end_time'        => 'HH:MM:SS',
+     *     'status'          => 'confirmed'|'pending'|'cancelled'|'coach_cancelled',
+     *     'paid'            => 0|1,
+     *     'adherent_id'     => int,
+     *     'adherent_first'  => string,
+     *     'adherent_last'   => string
+     *   ],
+     *   ...
+     * ]
+     */
+    public function forCoachUpcoming(int $coachId, \DateTimeInterface $fromDateTime): array
+    {
+        $fromDate = $fromDateTime->format('Y-m-d');
+        $fromTime = $fromDateTime->format('H:i:s');
+
+        $sql = "
+        SELECT
+            r.id,
+            r.status,
+            r.paid,
+            r.adherent_id,
+            a.first_name AS adherent_first,
+            a.last_name  AS adherent_last,
+            s.date,
+            s.start_time,
+            s.end_time
+        FROM reservations r
+        INNER JOIN slots s ON s.id = r.slot_id
+        INNER JOIN users a ON a.id = r.adherent_id
+        WHERE s.coach_id = :coach_id
+          AND (
+                s.date > :from_date_gt
+             OR (s.date = :from_date_eq AND s.start_time >= :from_time_ge)
+          )
+        ORDER BY s.date ASC, s.start_time ASC
+    ";
+
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([
+            ':coach_id'     => $coachId,
+            ':from_date_gt' => $fromDate, // utilisé dans "s.date > :from_date_gt"
+            ':from_date_eq' => $fromDate, // utilisé dans "s.date = :from_date_eq"
+            ':from_time_ge' => $fromTime, // utilisé dans "s.start_time >= :from_time_ge"
+        ]);
+
+        return $statement->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+    }
+
 
     /** Raccourci lisible côté contrôleur : annulation par un adhérent (règle 36h appliquée). */
     public function cancelByAdherent(int $reservationId): bool

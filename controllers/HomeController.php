@@ -22,13 +22,13 @@ final class HomeController
         ]);
     }
 
-    /** Page Services (si tu as la vue) */
-    public function showServicesPage(): void
-    {
-        View::render('services', [
-            'title' => 'Nos services',
-        ]);
-    }
+   public function showServicesPage(): void
+{
+    \App\views\View::render('templates/services', [
+        'title' => 'Nos services',
+    ]);
+}
+
 
     /** Page Nadia (si tu as la vue) */
 public function showNadiaPage(): void
@@ -58,14 +58,31 @@ public function showNadiaPage(): void
 
 
 
-    /** Page Sabrina (si tu as la vue) */
-    public function showSabrinaPage(): void
-    {
-        View::render('templates/sabrina', [
-            'title' => 'Coach Sabrina',
-        ]);
+  
+    /** Page Nadia (si tu as la vue) */
+public function showSabrinaPage(): void
+{
+    $folderFs = dirname(__DIR__) . '/public/assets/images/imageSabrina';
+
+    $gallery = [];
+    if (is_dir($folderFs)) {
+        $files = glob($folderFs . '/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}', GLOB_BRACE);
+        natsort($files);
+        foreach ($files as $filePath) {
+            $fileName = basename($filePath);
+            $gallery[] = [
+                'src'     => 'assets/images/imageSabrina/' . $fileName, // <-- bien le slash ici
+                'alt'     => 'demo Nadia',
+                'caption' => '',
+            ];
+        }
     }
 
+    \App\views\View::render('templates/Sabrina', [
+        'title'   => 'Sabrina',
+        'gallery' => $gallery,
+    ]);
+}
     /** Page Contact (si tu as la vue) */
     public function showContactPage(): void
     {
@@ -73,4 +90,7 @@ public function showNadiaPage(): void
             'title' => 'Contact',
         ]);
     }
+
+
+    
 }

@@ -69,35 +69,50 @@ function dateFrFromYmd(string $ymd): string {
   <h2>Mes réservations</h2>
 
   <?php if (empty($reservations)): ?>
-    <p>Aucune réservation.</p>
+    <p>Aucune réservation pour le moment.</p>
   <?php else: ?>
     <table class="table">
       <thead>
         <tr>
-          <th>Date</th><th>Heure</th><th>Coach</th><th>Statut</th><th></th>
+          <th>Date</th>
+          <th>Heure</th>
+          <th>Coach</th>
+          <th>Statut</th>
+          <th>Payé</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-      <?php foreach ($reservations as $reservationRow): ?>
+      <?php foreach ($reservations as $row): ?>
         <?php
-          $startDate = new DateTime($reservationRow['start_time']);
-          $dateFr    = $startDate->format('d/m/Y');
-          $heureFr   = $startDate->format('H:i').' - '.(new DateTime($reservationRow['end_time']))->format('H:i');
-          $canCancel = ($startDate > (new DateTime())->modify('+36 hours')) && (($reservationRow['status'] ?? '') !== 'cancelled');
+          $date      = (string)($row['date'] ?? '');
+          $start     = (string)($row['start_time'] ?? '');
+          $end       = (string)($row['end_time'] ?? '');
+          $status    = (string)($row['status'] ?? '');
+          $paid      = (int)($row['paid'] ?? 0) === 1;
+          $coachName = trim(($row['coach_first'] ?? '').' '.($row['coach_last'] ?? ''));
+
+          // Règle 48h côté vue (sécurité UX ; la règle serveur reste la source de vérité)
+          $slotStart = new DateTime("$date $start");
+          $limit48   = (new DateTime())->modify('+48 hours');
+          $cancellable = ($status !== 'cancelled') && ($slotStart > $limit48);
         ?>
         <tr>
-          <td><?= e($dateFr) ?></td>
-          <td><?= e($heureFr) ?></td>
-          <td><?= e(($reservationRow['coach_first'] ?? '').' '.($reservationRow['coach_last'] ?? '')) ?></td>
-          <td><?= e($reservationRow['status'] ?? '') ?><?= ((int)($reservationRow['paid'] ?? 0) === 1 ? ' (payé)' : '') ?></td>
+          <td><?= e((new DateTime($date))->format('d/m/Y')) ?></td>
+          <td><?= e((new DateTime($start))->format('H:i').' - '.(new DateTime($end))->format('H:i')) ?></td>
+          <td><?= e($coachName) ?></td>
+          <td><?= e($status) ?></td>
+          <td><?= $paid ? 'Oui' : 'Non' ?></td>
           <td>
-            <?php if ($canCancel): ?>
+            <?php if ($cancellable): ?>
               <form method="post" action="<?= BASE_URL ?>?action=reservationCancel" class="inline"
                     onsubmit="return confirm('Confirmer l’annulation ?');">
                 <?= csrf_input() ?>
-                <input type="hidden" name="reservation_id" value="<?= (int)$reservationRow['id'] ?>">
-                <button class="btn" type="submit">Annuler</button>
+                <input type="hidden" name="reservation_id" value="<?= (int)$row['id'] ?>">
+                <button class="btn">Annuler</button>
               </form>
+            <?php else: ?>
+              <!-- Rien / ou badge non annulable -->
             <?php endif; ?>
           </td>
         </tr>

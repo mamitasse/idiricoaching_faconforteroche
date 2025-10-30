@@ -214,7 +214,7 @@ final class AuthController
     }
 
     /** GET ?action=logout — Déconnecte l’utilisateur. */
-    public function logoutUser(): void
+    public function logout(): void
     {
         unset($_SESSION['user']);
         session_regenerate_id(true);
@@ -222,9 +222,5 @@ final class AuthController
     }
 
     /* ============ Alias compatibles avec tes anciennes routes ============ */
-    public function loginForm(): void  { $this->showLoginForm(); }
-    public function signupForm(): void { $this->showSignupForm(); }
-    public function loginPost(): void  { $this->handleLoginPost(); }
-    public function signupPost(): void { $this->handleSignupPost(); }
-    public function logout(): void     { $this->logoutUser(); }
+
 }

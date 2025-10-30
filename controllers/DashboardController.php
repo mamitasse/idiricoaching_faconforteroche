@@ -149,50 +149,73 @@ final class DashboardController
      * Page de tableau de bord pour un coach.
      * Vue: views/dashboard/coach.php
      */
-    public function showCoachDashboard(): void
-    {
-        $sessionUser = $this->requireLogin('coach');
+  public function showCoachDashboard(): void
+{
+    $sessionUser   = $this->requireLogin('coach');
+    $coachId       = (int)$sessionUser['id'];
+    $selectedDate  = $this->getSelectedDateFromGet();
 
-        $coachId = (int)$sessionUser['id'];
-        $selectedDate = $this->getSelectedDateFromGet();
+    // 1) Grille du jour (08→20) si manquante
+    $slotManager = new SlotManager();
+    $slotManager->ensureDailyGrid($coachId, $selectedDate, 8, 20);
 
-        // 1) Grille du jour (08→20) si manquante
-        $slotManager = new SlotManager();
-        $slotManager->ensureDailyGrid($coachId, $selectedDate, 8, 20);
+    // 2) Créneaux du jour en ENTITÉS
+    /** @var SlotEntity[] $daySlotsAsEntities */
+    $daySlotsAsEntities = $slotManager->listEntitiesForCoachDate($coachId, $selectedDate);
 
-        // 2) Créneaux du jour en ENTITÉS
-        /** @var SlotEntity[] $daySlotsAsEntities */
-        $daySlotsAsEntities = $slotManager->listEntitiesForCoachDate($coachId, $selectedDate);
-
-        // 3) Réservations du jour (tableaux enrichis)
-        $reservationManager = new ReservationManager();
-        if (method_exists($reservationManager, 'forCoachAtDate')) {
-            $reservationsForDay = $reservationManager->forCoachAtDate($coachId, $selectedDate);
-        } else {
-            // Fallback : filtre local si seule forCoach() existe
-            $allReservations = $reservationManager->forCoach($coachId);
-            $reservationsForDay = array_values(array_filter(
-                $allReservations,
-                fn(array $reservationRow) => ($reservationRow['date'] ?? null) === $selectedDate
-            ));
-        }
-
-        // 4) Liste des adhérents rattachés (ENTITÉS uniquement)
-        $userManager = new UserManager();
-        $attachedAdherents = $userManager->adherentsOfCoachEntities($coachId);
-
-
-        // 5) Rendu
-        View::render('templates/dashboard/coach', [
-            'title'        => 'Mon tableau de bord — Coach',
-            'coachName'    => trim(($sessionUser['first_name'] ?? '') . ' ' . ($sessionUser['last_name'] ?? '')),
-            'todayDate'    => (new DateTime('today'))->format('d/m/Y'),
-            'selectedDate' => $selectedDate,
-            'slots'        => $daySlotsAsEntities, // ENTITÉS
-            'reservations' => $reservationsForDay, // TABLEAUX
-            'adherents'    => $attachedAdherents,
-        ]);
+    // 3) Réservations du jour (tableaux enrichis)
+    $reservationManager = new ReservationManager();
+    if (method_exists($reservationManager, 'forCoachAtDate')) {
+        $reservationsForDay = $reservationManager->forCoachAtDate($coachId, $selectedDate);
+    } else {
+        // Fallback : filtre local si seule forCoach() existe
+        $allReservations   = $reservationManager->forCoach($coachId);
+        $reservationsForDay = array_values(array_filter(
+            $allReservations,
+            fn(array $reservationRow) => ($reservationRow['date'] ?? null) === $selectedDate
+        ));
     }
+
+    // 3bis) Réservations à venir (triées)
+    $reservationsUpcoming = [];
+    if (method_exists($reservationManager, 'forCoachUpcoming')) {
+        // ⬇️ passer un objet DateTime (et pas une string)
+        $reservationsUpcoming = $reservationManager->forCoachUpcoming($coachId, new DateTime('now'));
+    } else {
+        // Fallback si pas de méthode dédiée: filtrage local + tri
+        $all = $reservationManager->forCoach($coachId); // supposé renvoyer des lignes jointes
+        $todayIso = (new DateTime('today'))->format('Y-m-d');
+        $reservationsUpcoming = array_values(array_filter(
+            $all,
+            fn(array $row) =>
+                isset($row['date']) &&
+                $row['date'] > $todayIso &&
+                ($row['status'] ?? '') !== 'cancelled'
+        ));
+        usort($reservationsUpcoming, function ($a, $b) {
+            $ka = ($a['date'] ?? '') . ' ' . ($a['start_time'] ?? '');
+            $kb = ($b['date'] ?? '') . ' ' . ($b['start_time'] ?? '');
+            return $ka <=> $kb;
+        });
+    }
+
+    // 4) Liste des adhérents rattachés (ENTITÉS uniquement)
+    $userManager       = new UserManager();
+    $attachedAdherents = $userManager->adherentsOfCoachEntities($coachId);
+
+    // 5) Rendu (⚠️ correction du 'J=>')
+    View::render('templates/dashboard/coach', [
+        'title'              => 'Mon tableau de bord — Coach',
+        'coachName'          => trim(($sessionUser['first_name'] ?? '') . ' ' . ($sessionUser['last_name'] ?? '')),
+        'todayDate'          => (new DateTime('today'))->format('d/m/Y'),
+        'selectedDate'       => $selectedDate,
+        'slots'              => $daySlotsAsEntities,
+        'reservations'       => $reservationsForDay,      // ← corrigé
+        'reservationsFuture' => $reservationsUpcoming,     // à afficher dans la vue
+        'adherents'          => $attachedAdherents,
+    ]);
+}
+
 
     /* =========================================================
      * ALIAS (compatibilité avec anciens noms d’actions)
