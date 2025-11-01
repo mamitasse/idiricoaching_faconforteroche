@@ -1,6 +1,12 @@
 <?php
 declare(strict_types=1);
 
+
+
+define('MAIL_FROM', 'idiricoaching56@gmail.com');
+define('MAIL_FROM_NAME', 'Idiri Coaching');
+
+
 // (Optionnel) utilisé nulle part, tu peux le laisser
 define('MAIL_TRANSPORT', 'smtp');
 

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -55,20 +56,26 @@ $routes = [
     'signupPost'  => [AuthController::class, 'handleSignupPost'],
     'logout'      => [AuthController::class, 'logout'],
 
+    'forgotPassword'      => [AuthController::class, 'showForgotPasswordForm'],
+    'forgotPasswordPost'  => [AuthController::class, 'handleForgotPasswordPost'],
+    'resetPassword'       => [AuthController::class, 'showResetForm'],
+    'resetPasswordPost'   => [AuthController::class, 'handleResetPost'],
+
+
     /// Dashboards
-'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
-'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
+    'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
+    'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
 
-// --- Coach : nouvelles pages ---
-'coachAdherents'       => [DashboardController::class, 'showCoachAdherentsList'],
-'coachAdherentProfile' => [AdherentController::class, 'showAdherentProfile'],
+    // --- Coach : nouvelles pages ---
+    'coachAdherents'       => [DashboardController::class, 'showCoachAdherentsList'],
+    'coachAdherentProfile' => [AdherentController::class, 'showAdherentProfile'],
 
-// Créneaux / Réservations
-'creneauReserve'           => [CreneauController::class, 'reserve'],
-'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
-'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
-'slotBlock'                => [CreneauController::class, 'block'],
-'slotUnblock'              => [CreneauController::class, 'unblock'],
+    // Créneaux / Réservations
+    'creneauReserve'           => [CreneauController::class, 'reserve'],
+    'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
+    'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
+    'slotBlock'                => [CreneauController::class, 'block'],
+    'slotUnblock'              => [CreneauController::class, 'unblock'],
 
 ];
 

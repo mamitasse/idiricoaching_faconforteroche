@@ -23,6 +23,41 @@ declare(strict_types=1);
 
 namespace App\services;
 
+
+namespace App\services;
+
+/**
+ * Met en majuscule la 1ʳᵉ lettre de chaque “mot” (accents OK) et
+ * préserve les séparateurs courants (espace, tiret, apostrophe).
+ * Ex: "jean-luc d'argenteuil" -> "Jean-Luc D'Argenteuil"
+ */
+function capitalizeWords(string $value): string
+{
+    if ($value === '') return '';
+    // On découpe en gardant les séparateurs (capturés)
+    $parts = preg_split("/([\\s\\-’']+)/u", $value, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if ($parts === false) return $value;
+
+    $result = '';
+    foreach ($parts as $piece) {
+        // Si c'est un séparateur (espace/tiret/apostrophe), on le recolle tel quel
+        if (preg_match("/^[\\s\\-’']+$/u", $piece)) {
+            $result .= $piece;
+            continue;
+        }
+        // Mot: majuscule 1ʳᵉ lettre, reste en minuscules (respect UTF-8)
+        $first = mb_substr($piece, 0, 1, 'UTF-8');
+        $rest  = mb_substr($piece, 1, null, 'UTF-8');
+        $result .= mb_strtoupper($first, 'UTF-8') . mb_strtolower($rest, 'UTF-8');
+    }
+    return $result;
+}
+
+/** Alias rétro-compat (si jamais) */
+function capitalize_words(string $value): string { return capitalizeWords($value); }
+
+
+
 /* ============================================================
  * 1) ÉCHAPPEMENT HTML (sécurité XSS)
  * ============================================================ */

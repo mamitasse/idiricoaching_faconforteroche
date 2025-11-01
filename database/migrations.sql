@@ -3,12 +3,17 @@ CREATE DATABASE IF NOT EXISTS `idiricoaching` CHARACTER SET utf8mb4 COLLATE utf8
 USE `idiricoaching`;
 
 -- Table users
-CREATE TABLE IF NOT EXISTS `users` (
+CREATE TABLE `users` (
   `id`            INT UNSIGNED NOT NULL AUTO_INCREMENT,
   `first_name`    VARCHAR(100) NOT NULL,
   `last_name`     VARCHAR(100) NOT NULL,
   `email`         VARCHAR(190) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
+
+  -- ↓↓↓ nouveaux champs pour reset MDP ↓↓↓
+  `reset_token`      VARCHAR(64)  NULL,
+  `reset_expires_at` DATETIME     NULL,
+
   `phone`         VARCHAR(30)  NULL,
   `address`       VARCHAR(255) NULL,
   `age`           TINYINT UNSIGNED NULL,
@@ -20,9 +25,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_users_email` (`email`),
   KEY `idx_users_coach` (`coach_id`),
-  CONSTRAINT `fk_users_coach` FOREIGN KEY (`coach_id`) REFERENCES `users`(`id`)
+  KEY `idx_users_reset` (`reset_token`),
+  CONSTRAINT `fk_users_coach`
+    FOREIGN KEY (`coach_id`) REFERENCES `users` (`id`)
     ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 
 -- Table slots
 CREATE TABLE IF NOT EXISTS `slots` (

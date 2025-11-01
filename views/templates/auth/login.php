@@ -1,9 +1,11 @@
 <?php
+
 declare(strict_types=1);
 /**
  * Page de connexion (utilise .form-wrap pour un rendu cohérent avec le CSS existant).
  * Action POST : ?action=loginPost (gérée dans AuthController::loginPost()).
  */
+
 use function App\services\csrf_input;
 ?>
 <section class="form-wrap">
@@ -23,5 +25,9 @@ use function App\services\csrf_input;
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">Se connecter</button>
     </div>
+    <p class="subtitle" style="margin-top:8px">
+      <a href="<?= BASE_URL ?>?action=forgotPassword">Mot de passe oublié ?</a>
+    </p>
+
   </form>
 </section>

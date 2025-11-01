@@ -13,8 +13,11 @@ declare(strict_types=1);
  * @var array<int,array<string,mixed>> $reservations   Réservations (tableaux enrichis via JOIN)
  */
 
-use function App\services\csrf_input;
-use function App\services\e;
+
+use function App\services\csrfInput;
+use function App\services\escapeHtml;
+use function App\services\capitalizeWords;
+
 
 function timeHmFromSql(string $sqlDateTime): string {
     return (new DateTime($sqlDateTime))->format('H:i');
@@ -24,22 +27,25 @@ function dateFrFromYmd(string $ymd): string {
 }
 ?>
 <section class="card">
-  <h1>Bonjour <?= e($userName ?? '') ?></h1>
-  <p>Nous sommes le <?= e($todayDate ?? '') ?> — Ton coach : <strong><?= e($coachName ?? '—') ?></strong></p>
-</section>
+ <h1>Bonjour <?= escapeHtml(capitalizeWords($userName ?? '')) ?></h1>
+<p>
+  Nous sommes le <?= escapeHtml($todayDate ?? '') ?> — 
+  Ton coach : <?= escapeHtml(capitalizeWords($coachName ?? '')) ?>
+</p>
+
 
 <section class="card">
   <form method="get" action="" class="form" style="display:grid; grid-template-columns:1fr; gap:12px; max-width:360px;">
     <input type="hidden" name="action" value="adherentDashboard">
     <label>
       Sélectionner une date
-      <input type="date" name="date" value="<?= e($selectedDate ?? '') ?>" onchange="this.form.submit()">
+      <input type="date" name="date" value="<?= escapeHtml($selectedDate ?? '') ?>" onchange="this.form.submit()">
     </label>
   </form>
 </section>
 
 <section class="card">
-  <h2>Créneaux disponibles — <?= e(dateFrFromYmd($selectedDate ?? date('Y-m-d'))) ?> (coach <?= e($coachName ?? '—') ?>)</h2>
+  <h2>Créneaux disponibles — <?= escapeHtml(dateFrFromYmd($selectedDate ?? date('Y-m-d'))) ?> (coach <?= escapeHtml($coachName ?? '—') ?>)</h2>
 
   <div class="slots-container">
     <?php if (empty($slots)): ?>
@@ -48,13 +54,13 @@ function dateFrFromYmd(string $ymd): string {
       <?php foreach ($slots as $slotEntity): ?>
         <div class="slot available-slot">
           <div class="slot-time">
-            <?= e($slotEntity->getStartDateTime()->format('H:i')) ?>
+            <?= escapeHtml($slotEntity->getStartDateTime()->format('H:i')) ?>
             -
-            <?= e($slotEntity->getEndDateTime()->format('H:i')) ?>
+            <?= escapeHtml($slotEntity->getEndDateTime()->format('H:i')) ?>
           </div>
           <div class="slot-actions">
             <form class="inline" method="post" action="<?= BASE_URL ?>?action=creneauReserve">
-              <?= csrf_input() ?>
+              <?= csrfInput() ?>
               <input type="hidden" name="slot_id" value="<?= (int)$slotEntity->getId() ?>">
               <button class="btn btn-primary" type="submit">Réserver</button>
             </form>
@@ -98,16 +104,16 @@ function dateFrFromYmd(string $ymd): string {
           $cancellable = ($status !== 'cancelled') && ($slotStart > $limit48);
         ?>
         <tr>
-          <td><?= e((new DateTime($date))->format('d/m/Y')) ?></td>
-          <td><?= e((new DateTime($start))->format('H:i').' - '.(new DateTime($end))->format('H:i')) ?></td>
-          <td><?= e($coachName) ?></td>
-          <td><?= e($status) ?></td>
+          <td><?= escapeHtml((new DateTime($date))->format('d/m/Y')) ?></td>
+          <td><?= escapeHtml((new DateTime($start))->format('H:i').' - '.(new DateTime($end))->format('H:i')) ?></td>
+          <td><?= escapeHtml($coachName) ?></td>
+          <td><?= escapeHtml($status) ?></td>
           <td><?= $paid ? 'Oui' : 'Non' ?></td>
           <td>
             <?php if ($cancellable): ?>
               <form method="post" action="<?= BASE_URL ?>?action=reservationCancel" class="inline"
                     onsubmit="return confirm('Confirmer l’annulation ?');">
-                <?= csrf_input() ?>
+                <?= csrfInput() ?>
                 <input type="hidden" name="reservation_id" value="<?= (int)$row['id'] ?>">
                 <button class="btn">Annuler</button>
               </form>
