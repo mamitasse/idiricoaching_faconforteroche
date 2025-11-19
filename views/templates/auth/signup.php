@@ -9,7 +9,7 @@ declare(strict_types=1);
  * Variables attendues :
  * @var \App\models\UserEntity[] $coachEntities  (optionnel : liste des coachs)
  */
-use function App\services\csrf_input;
+use function App\services\csrfInput;
 use function App\services\escapeHtml;
 
 $coachEntities = $coachEntities ?? [];
@@ -18,7 +18,7 @@ $coachEntities = $coachEntities ?? [];
   <h1>Inscription</h1>
 
   <form method="post" action="<?= BASE_URL ?>?action=signupPost" class="form">
-    <?= csrf_input() ?>
+    <?= csrfInput() ?>
 
     <div class="grid-2">
       <label>Prénom
@@ -66,7 +66,7 @@ $coachEntities = $coachEntities ?? [];
           <option value="">—</option>
           <option value="female">Femme</option>
           <option value="male">Homme</option>
-          <option value="other">Autre</option>
+         
         </select>
       </label>
 

@@ -1,15 +1,13 @@
 <?php
-
 declare(strict_types=1);
 
 /**
- * Front Controller (point d’entrée unique)
- * ----------------------------------------
- * - Charge l’autoload + la config
- * - Lit le paramètre ?action dans l’URL
- * - Route vers la bonne méthode de contrôleur
- * - Convention : CamelCase partout (classes, méthodes publiques)
- */
+* Front Controller (point d’entrée unique)
+* ----------------------------------------
+* - Autoload + config
+* - Lecture de ?action
+* - Routage vers le bon contrôleur/méthode
+*/
 
 require_once __DIR__ . '/../config/autoload.php';
 
@@ -19,101 +17,101 @@ use App\controllers\DashboardController;
 use App\controllers\CreneauController;
 use App\controllers\ContactController;
 use App\controllers\AdherentController;
-
+use App\controllers\ErrorController;
 
 // ------------------------------------------------------------
-// Helpers (fonctions utilitaires) si disponibles
+// Helpers (facultatif si présents)
 // ------------------------------------------------------------
 $helpersCandidates = [
-    __DIR__ . '/../services/utils.php',
+__DIR__ . '/../services/utils.php',
 ];
 foreach ($helpersCandidates as $helpersFile) {
-    if (is_file($helpersFile)) {
-        require_once $helpersFile;
-        break;
-    }
+if (is_file($helpersFile)) {
+require_once $helpersFile;
+break;
+}
 }
 
 // ------------------------------------------------------------
-// Table de routage : action -> [Classe, méthode]
+// Table de routage : action -> [Classe, Méthode]
 // ------------------------------------------------------------
 $routes = [
-    // Pages publiques
-    ''         => [HomeController::class, 'showHomePage'],
-    'home'     => [HomeController::class, 'showHomePage'],
-    'services' => [HomeController::class, 'showServicesPage'],
-    'nadia'    => [HomeController::class, 'showNadiaPage'],
-    'sabrina'  => [HomeController::class, 'showSabrinaPage'],
+// Pages publiques
+'' => [HomeController::class, 'showHomePage'],
+'home' => [HomeController::class, 'showHomePage'],
+'services' => [HomeController::class, 'showServicesPage'],
+'nadia' => [HomeController::class, 'showNadiaPage'],
+'sabrina' => [HomeController::class, 'showSabrinaPage'],
 
-    // Contact (formulaire + envoi)
-    'contact'     => [ContactController::class, 'showContactForm'],
-    'contactPost' => [ContactController::class, 'handleContactPost'],
+// Contact
+'contact' => [ContactController::class, 'showContactForm'],
+'contactPost' => [ContactController::class, 'handleContactPost'],
 
-    // Authentification
-    'connexion'   => [AuthController::class, 'showLoginForm'],
-    'loginPost'   => [AuthController::class, 'handleLoginPost'],
-    'inscription' => [AuthController::class, 'showSignupForm'],
-    'signupPost'  => [AuthController::class, 'handleSignupPost'],
-    'logout'      => [AuthController::class, 'logout'],
+// Auth
+'connexion' => [AuthController::class, 'showLoginForm'],
+'loginPost' => [AuthController::class, 'handleLoginPost'],
+'inscription' => [AuthController::class, 'showSignupForm'],
+'signupPost' => [AuthController::class, 'handleSignupPost'],
+'logout' => [AuthController::class, 'logout'],
 
-    'forgotPassword'      => [AuthController::class, 'showForgotPasswordForm'],
-    'forgotPasswordPost'  => [AuthController::class, 'handleForgotPasswordPost'],
-    'resetPassword'       => [AuthController::class, 'showResetForm'],
-    'resetPasswordPost'   => [AuthController::class, 'handleResetPost'],
+// Mot de passe oublié / reset
+'forgotPassword' => [AuthController::class, 'showForgotPasswordForm'],
+'forgotPasswordPost' => [AuthController::class, 'handleForgotPasswordPost'],
+'resetPassword' => [AuthController::class, 'showResetForm'],
+'resetPasswordPost' => [AuthController::class, 'handleResetPost'],
 
+// Dashboards
+'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
+'coachDashboard' => [DashboardController::class, 'showCoachDashboard'],
 
-    /// Dashboards
-    'adherentDashboard' => [DashboardController::class, 'showAdherentDashboard'],
-    'coachDashboard'    => [DashboardController::class, 'showCoachDashboard'],
+// Coach : liste/adherent
+'coachAdherents' => [DashboardController::class, 'showCoachAdherentsList'],
+'coachAdherentProfile' => [AdherentController::class, 'showAdherentProfile'],
 
-    // --- Coach : nouvelles pages ---
-    'coachAdherents'       => [DashboardController::class, 'showCoachAdherentsList'],
-    'coachAdherentProfile' => [AdherentController::class, 'showAdherentProfile'],
-
-    // Créneaux / Réservations
-    'creneauReserve'           => [CreneauController::class, 'reserve'],
-    'reservationCancel'        => [CreneauController::class, 'reservationCancel'],
-    'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
-    'slotBlock'                => [CreneauController::class, 'block'],
-    'slotUnblock'              => [CreneauController::class, 'unblock'],
-
+// Créneaux / Réservations
+'creneauReserve' => [CreneauController::class, 'reserve'],
+'reservationCancel' => [CreneauController::class, 'reservationCancel'],
+'reservationCancelByCoach' => [CreneauController::class, 'reservationCancelByCoach'],
+'slotBlock' => [CreneauController::class, 'block'],
+'slotUnblock' => [CreneauController::class, 'unblock'],
 ];
 
 // ------------------------------------------------------------
-// Lecture de l’action demandée (ex: ?action=connexion)
+// Lecture de l'action
 // ------------------------------------------------------------
-$requestedAction = isset($_GET['action']) ? (string)$_GET['action'] : '';
+$action = isset($_GET['action']) ? (string)$_GET['action'] : '';
 
-// Si l’action n’existe pas, on retombe sur la home
-if (!array_key_exists($requestedAction, $routes)) {
-    $requestedAction = '';
+// Si action non vide et inconnue → 404
+if ($action !== '' && !isset($routes[$action])) {
+(new ErrorController())->notFound("La page « {$action} » n’existe pas.");
+exit;
 }
 
-// Résolution de la paire [Classe, Méthode]
-[$controllerClassName, $controllerMethodName] = $routes[$requestedAction];
+// action vide → home (comportement d’origine)
+[$controllerClass, $methodName] = $routes[$action] ?? $routes[''];
 
 // ------------------------------------------------------------
-// Sécurité : contrôleur et méthode doivent exister
+// Sécurité : contrôleur & méthode doivent exister
 // ------------------------------------------------------------
-if (!class_exists($controllerClassName)) {
-    http_response_code(500);
-    echo "<h1>Erreur serveur</h1>
-          <p>Contrôleur introuvable : <code>{$controllerClassName}</code>.<br>
-          Vérifie l’autoload (<code>config/autoload.php</code>), le namespace et le chemin du fichier.</p>";
-    exit;
+if (!class_exists($controllerClass)) {
+http_response_code(500);
+echo "<h1>Erreur serveur</h1>
+<p>Contrôleur introuvable : <code>{$controllerClass}</code>.<br>
+Vérifie l’autoload (<code>config/autoload.php</code>), le namespace et le chemin du fichier.</p>";
+exit;
 }
 
-$controllerInstance = new $controllerClassName();
+$controllerInstance = new $controllerClass();
 
-if (!is_callable([$controllerInstance, $controllerMethodName])) {
-    http_response_code(500);
-    echo "<h1>Erreur serveur</h1>
-          <p>Méthode introuvable : <code>{$controllerClassName}::{$controllerMethodName}()</code>.<br>
-          Mets à jour la table de routage ou crée la méthode demandée.</p>";
-    exit;
+if (!is_callable([$controllerInstance, $methodName])) {
+http_response_code(500);
+echo "<h1>Erreur serveur</h1>
+<p>Méthode introuvable : <code>{$controllerClass}::{$methodName}()</code>.<br>
+Mets à jour la table de routage ou implémente la méthode.</p>";
+exit;
 }
 
 // ------------------------------------------------------------
-// Exécution de l’action
+// Exécution
 // ------------------------------------------------------------
-$controllerInstance->{$controllerMethodName}();
+$controllerInstance->{$methodName}();

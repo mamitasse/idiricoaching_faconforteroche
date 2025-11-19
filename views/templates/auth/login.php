@@ -6,13 +6,13 @@ declare(strict_types=1);
  * Action POST : ?action=loginPost (gérée dans AuthController::loginPost()).
  */
 
-use function App\services\csrf_input;
+use function App\services\csrfInput;
 ?>
 <section class="form-wrap">
   <h1>Connexion</h1>
 
   <form method="post" action="<?= BASE_URL ?>?action=loginPost" class="form">
-    <?= csrf_input() ?>
+    <?=csrfInput() ?>
 
     <label>Email
       <input type="email" name="email" required>

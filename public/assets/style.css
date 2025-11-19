@@ -1,46 +1,106 @@
+/* ========================================================================== */
+/*  Idiri Coaching — Theme CSS (mentor-style, organisé & commenté)            */
+/*  TABLE DES MATIÈRES                                                        */
+/*    0) Variables & Reset                                                    */
+/*    1) Typographie                                                          */
+/*    2) Layout global (topbar, container, footer, sticky)                    */
+/*    3) Navigation (liens, nav, burger)                                      */
+/*    4) Composants génériques (cards, boutons, badges, flash)                */
+/*    5) Tableaux                                                             */
+/*    6) Formulaires (wrappers, champs, grilles)                              */
+/*    7) Dashboards (slots, états)                                            */
+/*    8) Sections “Home” (hero, cards vitrines)                               */
+/*    9) Carousel                                                             */
+/*   10) Bloc social (footer social)                                          */
+/*   11) Page Services                                                        */
+/*   12) Divers utilitaires (date picker icon, overlays)                      */
+/*   13) Media Queries                                                        */
+/* ========================================================================== */
+
+
+/* ========================================================================== */
+/* 0) VARIABLES & RESET                                                       */
+/* ========================================================================== */
+
 :root {
-  --bg: #4f3535;
-  --card: #5b4040;
-  --text: #fff;
+  /* Couleurs thème */
+  --bg:    #4f3535;
+  --card:  #5b4040;
+  --text:  #ffffff;
   --muted: #e8d9d9;
+
+  /* Dimensions */
+  --header-h: 64px;
+
+  /* Fonts (remplaçables facilement) */
+  --font-heading: "Barlow Condensed", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
+  --font-body:    "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
 }
-* {
-  box-sizing: border-box;
-}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
 body {
   margin: 0;
-  font-family: system-ui, Arial, sans-serif;
   color: var(--text);
-  background: #2a2323;
-}
+  background-color: #2a2323; /* fallback sous l'image */
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 
-/* ===== Topbar / Layout ===== */
-.topbar {
+  /* Image de fond globale (modifiable) */
+  background-image:
+    linear-gradient(rgba(78, 60, 60, 0.8), rgba(78, 60, 60, 0.8)),
+    url("../assets/images/imageNadia/photoNadia13.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  /* Sticky layout: réserve la place de la topbar fixe */
+  min-height: 100vh;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background: var(--bg);
-  position: sticky;
-  top: 0;
-}
-.brand {
-  font-weight: 700;
-  color: #fff;
-  text-decoration: none;
-}
-.nav a {
-  color: var(--muted);
-  margin-left: 12px;
-  text-decoration: none;
-}
-.nav-user {
-  margin: 0 10px;
-  color: var(--muted);
+  flex-direction: column;
+  padding-top: var(--header-h);
 }
 
-.container{
-  max-width: clamp(960px, 90vw, 1400px); /* jusqu’à ~1400px */
+
+/* ========================================================================== */
+/* 1) TYPOGRAPHIE                                                             */
+/* ========================================================================== */
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.3px;
+  text-transform: none; /* passe à uppercase si voulu */
+}
+
+
+/* ========================================================================== */
+/* 2) LAYOUT GLOBAL (topbar, container, footer, sticky)                       */
+/* ========================================================================== */
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: var(--bg);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+}
+
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+}
+
+.brand-logo { height: 36px; width: auto; display: block; }
+.brand-text { font-weight: 700; color: #fff; font-family: var(--font-heading); }
+
+.container {
+  flex: 1 0 auto;
+  max-width: clamp(960px, 90vw, 1400px);
   margin: 30px auto;
   padding: 0 16px;
 }
@@ -51,21 +111,67 @@ body {
   color: var(--muted);
 }
 
-/* ===== Cards / Buttons ===== */
+
+/* ========================================================================== */
+/* 3) NAVIGATION (liens, nav, burger)                                         */
+/* ========================================================================== */
+
+/* Liens globaux (facile à personnaliser) */
+a {
+  color: #dee8ed;                 /* texte des liens */
+  text-decoration: underline;     /* style par défaut */
+}
+a:visited { color: #4ed6b2; }
+a:hover,
+a:focus  { color: #f59e0b; text-decoration: underline; }
+a:active { color: #ef4444; }
+
+/* Liens dans la topbar (menu) */
+.nav { display: flex; gap: 14px; align-items: center; }
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-left: 12px;
+  line-height: var(--header-h);
+}
+.nav a:hover,
+.nav a:focus { color: #fff; }
+
+/* Burger (mobile) */
+.nav-toggle {
+  display: none;
+  border: 0; background: transparent;
+  padding: 6px; margin-left: auto;
+}
+.nav-toggle .burger-line {
+  display: block; width: 26px; height: 3px;
+  background: #fff; border-radius: 2px; margin: 5px 0;
+}
+
+
+/* ========================================================================== */
+/* 4) COMPOSANTS GÉNÉRIQUES (cards, boutons, badges, flash)                   */
+/* ========================================================================== */
+
 .card {
   background: var(--card);
   border-radius: 14px;
   padding: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  display: flex; flex-direction: column;
   gap: 12px;
   margin: 16px 0;
 }
-.card h2 {
-  margin: 0 0 8px;
-  font-size: 22px;
+.card h2 { margin: 0 0 8px; font-size: 22px; }
+
+.card-media {
+  display: block; width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px; overflow: hidden;
+  background: rgba(255,255,255,0.08);
 }
+.card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-actions { margin-top: auto; } /* pousse les boutons en bas */
 
 .btn {
   display: inline-block;
@@ -75,52 +181,17 @@ body {
   color: #fff;
   text-decoration: none;
   font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255,255,255,0.12);
   cursor: pointer;
+  font-family: var(--font-body);
 }
-.btn:hover {
-  filter: brightness(1.05);
-}
+.btn:hover { filter: brightness(1.05); }
 .btn-primary {
   background: #b8736b;
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255,255,255,0.18);
 }
-.inline {
-  display: inline;
-}
+.inline { display: inline; }
 
-/* ===== Flash ===== */
-.flash {
-  margin: 10px 0;
-  padding: 10px;
-  border-radius: 8px;
-}
-.flash.success {
-  background: #335c3a;
-}
-.flash.error {
-  background: #7a3434;
-}
-
-/* ===== Tables ===== */
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #3a2e2e;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.table th,
-.table td {
-  padding: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: left;
-}
-.table thead th {
-  background: #4f3535;
-}
-
-/* ===== Badges ===== */
 .badge {
   display: inline-block;
   padding: 4px 8px;
@@ -129,706 +200,319 @@ body {
   color: #fff;
   font-size: 0.85rem;
 }
-.badge.ok {
-  background: #2e7d32;
-}
-.badge.warn {
-  background: #a5670a;
-}
+.badge.ok   { background: #2e7d32; }
+.badge.warn { background: #a5670a; }
 
-/* ===== Home ===== */
-.hero {
-  padding: 48px 24px;
-  text-align: center;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
-  border-radius: 14px;
-  margin-bottom: 24px;
-}
-.hero h1 {
-  font-size: clamp(28px, 4vw, 40px);
-  margin: 0 0 8px;
-}
-.hero .subtitle {
-  color: var(--muted);
-  margin: 0;
-}
+/* Flash messages */
+.flash { margin: 10px 0; padding: 10px; border-radius: 8px; }
+.flash.success { background: #335c3a; }
+.flash.error   { background: #7a3434; }
 
-.cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  text-align: center;
-}
-@media (max-width: 720px) {
-  .cards {
-    grid-template-columns: 1fr;
-  }
-}
 
-.card-placeholder {
-  height: 200x;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ddd;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-.card-actions {
-  margin-top: auto;
-  display: flex;
-  gap: 8px;
-}
+/* ========================================================================== */
+/* 5) TABLEAUX                                                                 */
+/* ========================================================================== */
 
-/* ===== Forms (login + signup) ===== */
+.table {
+  width: 100%; border-collapse: collapse;
+  background: #3a2e2e;
+  border-radius: 8px; overflow: hidden;
+}
+.table th, .table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  text-align: left;
+}
+.table thead th { background: #4f3535; }
+
+
+/* ========================================================================== */
+/* 6) FORMULAIRES (wrappers, champs, grilles)                                 */
+/* ========================================================================== */
+
 .form-wrap {
   background: #3d2a2c;
   border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-  max-width: 720px;
+  padding: 24px 28px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
   margin: 18px auto;
+  max-width: clamp(700px, 85vw, 1500px);
 }
 .form-wrap h1 {
-  margin: 0 0 12px;
+  text-align: center;
+  font-size: clamp(24px, 2.6vw, 38px);
+  margin: 0 0 16px;
 }
 
-.form {
-  display: grid;
-  gap: 14px;
-}
-.form label {
-  font-weight: 600;
-  display: grid;
-  gap: 6px;
-}
+.form { display: grid; gap: 14px; }
+.form label { font-weight: 600; display: grid; gap: 6px; }
+
 .form input,
 .form select,
 .form textarea {
   width: 100%;
-  padding: 10px 12px;
+  padding: 14px 16px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255,255,255,0.15);
   background: #2b2122;
-  color: #eee;
-  outline: none;
+  color: #eee; outline: none;
+  font-size: 1.05rem;
 }
 .form input:focus,
 .form select:focus {
   border-color: #b8736b;
-  box-shadow: 0 0 0 3px rgba(184, 115, 107, 0.25);
+  box-shadow: 0 0 0 3px rgba(184,115,107,0.25);
 }
 
-.grid-2 {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.grid-3 {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-@media (max-width: 900px) {
-  .grid-3 {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-@media (max-width: 640px) {
-  .grid-2,
-  .grid-3 {
-    grid-template-columns: 1fr;
-  }
-}
+.form-actions { display: flex; justify-content: flex-end; }
+.form-actions .btn { /* bouton large sur mobile: voir media queries */ }
 
-/* Login specifics */
-.hero--small {
-  padding: 28px 20px;
-  margin-bottom: 18px;
-}
-.auth {
-  display: flex;
-  justify-content: center;
-}
-.auth-card {
-  width: 100%;
-  max-width: 520px;
-}
-.form-field {
-  display: grid;
-  gap: 6px;
-}
+.grid-2 { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+.grid-3 { display: grid; gap: 16px; grid-template-columns: 1fr 1fr 1fr; }
 
-/* ===== Adherent dashboard ===== */
+
+/* ========================================================================== */
+/* 7) DASHBOARDS (slots & états)                                              */
+/* ========================================================================== */
+
 .slots-container {
-  display: grid;
-  gap: 12px;
+  display: grid; gap: 12px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-@media (max-width: 980px) {
-  .slots-container {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (max-width: 720px) {
-  .slots-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 520px) {
-  .slots-container {
-    grid-template-columns: 1fr;
-  }
 }
 
 .slot {
   background: #3d2a2c;
-  border-radius: 12px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  border-radius: 12px; padding: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
 }
-.slot-time {
-  font-weight: 700;
-  font-size: 18px;
-}
-.slot-actions .btn {
-  white-space: nowrap;
-}
+.slot-time { font-weight: 700; font-size: 18px; }
+.slot-actions .btn { white-space: nowrap; }
 
-.available-slot {
-  border: 1px solid #2e7d32;
-}
-.unavailable-slot {
-  border: 1px solid #a5670a;
-  opacity: 0.85;
-}
-.reserved-slot {
-  border: 1px solid #7a3434;
-  background: #4a2e2e;
-}
+.available-slot   { border: 1px solid #2e7d32; }
+.unavailable-slot { border: 1px solid #a5670a; opacity: 0.85; }
+.reserved-slot    { border: 1px solid #7a3434; background: #4a2e2e; }
 
-.card {
-  display: flex;
-  flex-direction: column;
+
+/* ========================================================================== */
+/* 8) SECTIONS “HOME” (hero + cards vitrines)                                 */
+/* ========================================================================== */
+
+.hero {
+  padding: 48px 24px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent);
+  border-radius: 14px; margin-bottom: 24px;
 }
-.card-media {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 10; /* même hauteur pour les deux vignettes */
-  border-radius: 12px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-}
-.card-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* recadre sans déformer */
-  display: block;
-}
-.card-actions {
-  margin-top: auto;
-} /* pousse le bouton en bas de la carte */
-/* Footer social */
-.social-media {
-  margin-top: 24px;
-  padding: 18px 24px;
-  background: var(--bg);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.hero h1 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 8px; }
+.hero .subtitle { color: var(--muted); margin: 0; }
+
+/* Grille de cartes vitrines */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(360px, 1fr));
   gap: 20px;
 }
-.social-media .social-block {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-.social-media .name {
-  font-weight: 700;
-  color: var(--muted);
-}
-.social-media .icons a {
-  display: inline-block;
-  margin-right: 8px;
-}
-.social-media .icons img {
-  width: 28px;
-  height: 28px;
-  display: block;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-}
-.social-media .logo img {
-  height: 56px;
-  display: block;
-}
-@media (max-width: 700px) {
-  .social-media {
-    flex-direction: column;
-    text-align: center;
-  }
-  .social-media .logo img {
-    height: 46px;
-  }
-}
-/* --- Sticky footer --- */
-html,
-body {
-  height: 100%;
+.card-img { border-radius: 12px; overflow: hidden; }
+.card-img img {
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 16 / 10; object-fit: cover;
 }
 
-body {
-  min-height: 100vh;
-  display: flex; /* header, main, footer empilés */
-  flex-direction: column;
+
+/* ========================================================================== */
+/* 9) CAROUSEL                                                                 */
+/* ========================================================================== */
+
+.carousel { position: relative; max-width: 1100px; margin: 24px auto; }
+
+.carousel-viewport {
+  overflow: hidden; border-radius: 14px;
+  aspect-ratio: 16 / 9;
+  background: #261d1d; /* fond en attendant le chargement */
 }
 
-.container {
-  /* ton <main class="container"> */
-  flex: 1 0 auto; /* prend toute la hauteur restante */
-}
-
-footer.social-media {
-  flex-shrink: 0; /* ne rétrécit pas */
-  width: 100%;
-  background: var(--bg); /* optionnel: cohérent avec ta topbar */
-  padding: 10px 16px; /* si tu veux un peu d’air */
-}
-
-:root {
-  --header-h: 64px;
-}
-
-/* header fixe en haut */
-.topbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: var(--header-h);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  background: var(--bg);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-}
-
-/* réserve la place du header */
-body {
-  padding-top: var(--header-h);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-}
-.brand-logo {
-  height: 36px; /* ajuste à ton goût (ex: 40px) */
-  width: auto;
-  display: block;
-}
-.brand-text {
-  font-weight: 700;
-  color: #fff;
-}
-
-/* liens nav alignés verticalement */
-.nav a {
-  line-height: var(--header-h);
-  color: var(--muted);
-  text-decoration: none;
-  margin-left: 12px;
-}
-.nav a:hover {
-  opacity: 0.9;
-}
-.logo {
-  display: flex;
-  flex-direction: column; /* Disposition verticale */
-  align-items: center; /* Centrage horizontal */
-  flex: 1; /* Distribution équitable de l'espace */
-  text-align: center;
-}
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-family: "Cursive";
-  background-image: linear-gradient(
-      rgba(78, 60, 60, 0.8),
-      rgba(78, 60, 60, 0.8)
-    ),
-    url("../assets/images/imageNadia/photoNadia13.jpg"); /* Remplacez par le chemin de vot*/
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  color: aliceblue;
-}
-/* remplace ta section .cards / .card existante */
-.cards{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(360px, 1fr)); /* cartes plus larges */
-  gap: 20px;
-}
-
-.card{
-  background:#3d2a2c;
-  border-radius:14px;
-  padding:16px;
-  box-shadow:0 4px 20px rgba(0,0,0,.25);
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
-.card h2{ margin:0 0 8px; font-size:22px; }
-
-/* bloc image dédié */
-.card-img{ border-radius:12px; overflow:hidden; }
-.card-img img{
-  display:block;
-  width:100%;
-  height:auto;
-  aspect-ratio: 16 / 10;     /* ratio harmonisé */
-  object-fit: cover;          /* crop propre */
-}
-
-/* sur très grands écrans : on augmente encore la “surface” */
-@media (min-width: 1400px){
-  .cards{ gap: 24px; }
-  .card h2{ font-size:24px; }
-  .card-img img{ aspect-ratio: 16 / 9; } /* un peu plus “ciné” */
-}
-
-/* tablette */
-@media (max-width: 980px){
-  .cards{ grid-template-columns: 1fr 1fr; }
-}
-/* mobile */
-@media (max-width: 640px){
-  .cards{ grid-template-columns: 1fr; }
-}
-.card-actions{ margin-top:auto; }
-.card-actions .btn{ width:100%; text-align:center; }
-/* ===== Signup: meilleure mise à l'échelle sur grands écrans ===== */
-
-/* La carte s'étire davantage, avec padding plus généreux */
-.form-wrap{
-  max-width: clamp(680px, 70vw, 1100px);
-  padding:50px 50px;
-}
-
-/* Titre plus lisible et centré */
-.form-wrap h1{
-  text-align: center;
-  font-size: clamp(24px, 2.6vw, 38px);
-  margin-bottom: 16px;
-}
-
-/* Champs un peu plus grands */
-.form input,
-.form select,
-.form textarea{
-  padding: 14px 16px;
-  font-size: 1.05rem;
-}
-
-/* Boutons plus confortables */
-.form .btn,
-.form button{
-  padding: 12px 18px;
-  font-size: 1rem;
+.carousel-track { display: flex; transition: transform .45s ease; will-change: transform; }
+.carousel-slide { flex: 0 0 100%; margin: 0; }
+.carousel-slide img {
+  width: calc(100%); margin: 0 20px;
+  height: 600px; object-fit: contain;
   border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  transition: transform .3s ease, box-shadow .3s ease;
 }
 
-/* Grilles qui “respirent” mieux et prennent la largeur dispo */
-.grid-2{ 
-  grid-template-columns: repeat(2, minmax(300px, 1fr));
-  gap: 16px;
-}
-.grid-3{
-  grid-template-columns: repeat(3, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-/* Très grands écrans (≥1400px) : on pousse un peu plus */
-@media (min-width: 1400px){
-  .form-wrap{ max-width: 1200px; }
-  .grid-2{ grid-template-columns: repeat(2, minmax(360px, 1fr)); }
-  .grid-3{ grid-template-columns: repeat(3, minmax(280px, 1fr)); }
-}
-
-/* Tablettes / mobiles : on garde 1 colonne, inchangé */
-@media (max-width: 900px){
-  .grid-3{ grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 640px){
-  .grid-2, .grid-3{ grid-template-columns: 1fr; }
-}
-/* ====== Header responsive (burger) ====== */
-.brand-logo{
-  height: 36px;
-  width: auto;
-  display: block;
-}
-
-/* bouton burger (caché sur desktop) */
-.nav-toggle{
-  display: none;
-  border: 0;
-  background: transparent;
-  padding: 6px;
-  margin-left: auto;
-}
-.nav-toggle .burger-line{
-  display:block;
-  width: 26px;
-  height: 3px;
-  background: #fff;
-  border-radius: 2px;
-  margin: 5px 0;
-}
-
-/* Menu de base (desktop) */
-.nav{ display:flex; gap:14px; align-items:center; }
-.nav a{ color: var(--muted); text-decoration:none; padding:8px 6px; }
-.nav a:hover{ color:#fff; }
-
-/* --- Mobile / petit écran --- */
-@media (max-width: 900px){
-  .nav-toggle{ display:block; }
-
-  /* cache les liens par défaut */
-  .nav{
-    display: none;
-    position: absolute;
-    top: 56px;          /* sous la barre */
-    right: 12px;
-    background: var(--bg);
-    border-radius: 10px;
-    box-shadow: 0 10px 24px rgba(0,0,0,.35);
-    width: min(80vw, 320px);
-    padding: 8px;
-    z-index: 1000;
-    flex-direction: column;
-    align-items: stretch;
-  }
-  /* état ouvert */
-  .nav.open{ display:flex; }
-
-  .nav a{
-    display:block;
-    padding: 12px 14px;
-    border-radius: 8px;
-  }
-  .nav a:hover{ background: rgba(255,255,255,.08); color:#fff; }
-}
-/* élargit le conteneur actuel */
-.form-wrap{
-  max-width: clamp(700px, 85vw, 2000px);
-  padding: 24px 28px;
-  margin: 18px auto;
-}
-/* élargir le formulaire d'inscription (force la priorité) */
-.form-wrap{
-  width: 95vw !important;      /* prend 95% de la largeur de la fenêtre */
-  max-width: 1500px !important; /* mais ne dépasse jamais 1100px */
-  padding: 24px 28px !important;
-}
-
-/* grilles plus confortables sur grands écrans */
-.grid-2, .grid-3 { gap: 16px; }
-.grid-2 { grid-template-columns: 1fr 1fr; }
-.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-
-/* sur mobile, on re-pile en 1 colonne */
-@media (max-width: 720px){
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
-}
-
-/* boutons */
-.form-actions { display:flex; justify-content:flex-end; }
-@media (max-width: 480px){
-  .form-actions { justify-content: stretch; }
-  .form-actions .btn { width: 100%; }
-  
-}body::before{
-  content:""; position:fixed; inset:0;
-  background:rgba(0,0,0,.22); pointer-events:none;
-}
-
-/* --- Carousel générique (amélioré) --- */
-.carousel { 
-  position: relative; 
-  max-width: 1100px;        /* un peu plus large si possible */
-  margin: 24px auto; 
-}
-
-/* Hauteur homogène pour TOUTES les images */
-.carousel-viewport { 
-  overflow: hidden; 
-  border-radius: 14px;
-  aspect-ratio: 16 / 9;     /* <-- fixe la hauteur : toutes les slides auront la même */
-  background: #261d1d;      /* fond en attendant le chargement */
-}
-
-/* Piste & slides */
-.carousel-track { 
-  display: flex; 
-  transition: transform .45s ease; 
-  will-change: transform; 
-}
-.carousel-slide { 
-  flex: 0 0 100%; 
-  margin: 0;                /* supprime le margin par défaut de <figure> */
-}
-.carousel-slide img { 
-  width: calc(100% ); /* Largeur de l'image avec une petite marge */
-  margin: 0 20px;
-  height: 600px; /* Hauteur fixe pour toutes les images */
-  object-fit: contain;
-  border-radius: 10px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3); /* Ombre accentuée pour les images */
-  transition: transform 0.3s ease, box-shadow 0.3s ease; /* Transition fluide pour les effets */       /* recadre proprement sans déformer */
-}
-
-/* Petits dégradés aux bords => meilleures flèches sur images claires */
+/* Dégradés latéraux pour lisibilité des flèches */
 .carousel::before,
-.carousel::after{
-  content:"";
-  position:absolute; top:0; bottom:0; width:110px; pointer-events:none;
+.carousel::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 110px; pointer-events: none;
 }
-.carousel::before{
-  left:0; 
-  background: linear-gradient(90deg, rgba(0,0,0,.35), transparent);
-}
-.carousel::after{
-  right:0; 
-  background: linear-gradient(-90deg, rgba(0,0,0,.35), transparent);
-}
+.carousel::before { left: 0;  background: linear-gradient(90deg, rgba(0,0,0,.35), transparent); }
+.carousel::after  { right: 0; background: linear-gradient(-90deg, rgba(0,0,0,.35), transparent); }
 
-/* Flèches +++ visibles */
+/* Flèches */
 .carousel-btn {
-  position: absolute; 
-  top: 50%; 
-  transform: translateY(-50%);
-  width: 80px; 
-  height: 80px; 
-  border-radius: 50%; 
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 80px; height: 80px; border-radius: 50%;
   border: 1px solid rgba(255,255,255,.65);
-  background: rgba(0,0,0,.65);
-  color: #fff; 
-  font-size: 40px; 
-  line-height: 56px;
-  display: grid; 
-  place-items: center; 
-  cursor: pointer;
+  background: rgba(0,0,0,.65); color: #fff;
+  font-size: 40px; line-height: 56px;
+  display: grid; place-items: center; cursor: pointer;
   box-shadow: 0 6px 24px rgba(0,0,0,.45);
- 
   transition: transform .15s ease, background .15s ease;
 }
-.carousel-btn:hover { 
-  background: rgba(0,0,0,.8); 
-  transform: translateY(-50%) scale(1.06);
-}
-.carousel-btn:disabled { 
-  opacity: .4; 
-  cursor: default; 
-  transform: translateY(-50%) scale(1.0);
-}
-.carousel-btn.prev { left: 14px; }
-.carousel-btn.next { right: 14px; }
-.carousel-btn:focus-visible{ outline: 3px solid #ffb4a9; }
+.carousel-btn:hover { background: rgba(0,0,0,.8); transform: translateY(-50%) scale(1.06); }
+.carousel-btn:disabled { opacity: .4; cursor: default; transform: translateY(-50%) scale(1.0); }
+.carousel-btn.prev { left: 14px; } .carousel-btn.next { right: 14px; }
+.carousel-btn:focus-visible { outline: 3px solid #ffb4a9; }
 
 /* Points (indicateurs) */
-.carousel-dots { 
-  display: flex; 
-  gap: 10px; 
-  justify-content: center; 
-  margin-top: 12px; 
+.carousel-dots {
+  display: flex; gap: 10px; justify-content: center; margin-top: 12px;
 }
 .carousel-dots .dot {
-  width: 10px; 
-  height: 10px; 
-  border-radius: 50%;
-  background: rgba(255,255,255,.4); 
-  border: 0; 
-  cursor: pointer;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: rgba(255,255,255,.4); border: 0; cursor: pointer;
   transition: transform .15s ease, background .15s ease;
 }
-.carousel-dots .dot:hover{ transform: scale(1.15); }
+.carousel-dots .dot:hover  { transform: scale(1.15); }
 .carousel-dots .dot.active { background: rgba(255,255,255,.95); }
 
-/* Responsive : flèches un peu plus petites sur mobile */
-@media (max-width: 640px){
-  .carousel-viewport{ border-radius: 12px; }
-  .carousel-btn{ 
-    width: 48px; height: 48px; font-size: 26px; line-height: 48px; 
-  }
-  .carousel-btn.prev { left: 10px; }
-  .carousel-btn.next { right: 10px; }
-}
-:root{
-  --font-heading: "Barlow Condensed", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
-  --font-body: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue", sans-serif;
-}
 
-body{ font-family: var(--font-body); }
-h1,h2,h3,h4{ 
-  font-family: var(--font-heading); 
-  letter-spacing: .3px;
-  text-transform: none; /* passe à uppercase si tu veux plus “impact” */
-}
+/* ========================================================================== */
+/* 10) BLOC SOCIAL (footer social)                                            */
+/* ========================================================================== */
 
-.topbar .brand-text{ font-family: var(--font-heading); font-weight: 700; }
-.btn{ font-family: var(--font-body); font-weight: 600; }
-.nav a{ font-family: var(--font-body); }
-.service-container {
-  max-width: 1100px;
-  margin: 24px auto;
-  padding: 16px;
+.social-media {
+  margin-top: 24px; padding: 18px 24px;
+  background: var(--bg);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
 }
+.social-media .social-block { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.social-media .name { font-weight: 700; color: var(--muted); }
+.social-media .icons a { display: inline-block; margin-right: 8px; }
+.social-media .icons img { width: 28px; height: 28px; display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+.social-media .logo img { height: 56px; display: block; }
 
-.service-container h1 {
-  margin: 0 0 12px;
-}
+
+/* ========================================================================== */
+/* 11) PAGE SERVICES                                                          */
+/* ========================================================================== */
+
+.service-container { max-width: 1100px; margin: 24px auto; padding: 16px; }
+.service-container h1 { margin: 0 0 12px; }
 
 .service-section {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
-  padding: 16px;
-  margin: 16px 0;
+  padding: 16px; margin: 16px 0;
 }
-
-.service-section h2 {
-  margin: 0 0 8px;
-}
+.service-section h2 { margin: 0 0 8px; }
 
 .eventservice {
-  display: block;
-  width: 100%;
-  max-height: 420px;
-  object-fit: cover;
-  border-radius: 12px;
-  margin: 8px 0 14px;
+  display: block; width: 100%; max-height: 420px;
+  object-fit: cover; border-radius: 12px; margin: 8px 0 14px;
 }
-input[type="date"]::-webkit-calendar-picker-indicator{
+
+
+/* ========================================================================== */
+/* 12) DIVERS UTILITAIRES                                                     */
+/* ========================================================================== */
+
+/* Icône du datepicker (force blanche et visible) */
+input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: 1;
-  filter: invert(1) brightness(1.6) contrast(1.1); /* la rend bien blanche */
+  filter: invert(1) brightness(1.6) contrast(1.1);
   cursor: pointer;
 }
+
+/* Overlay global léger (peut être désactivé si besoin) */
+body::before {
+  content: ""; position: fixed; inset: 0;
+  background: rgba(0,0,0,.22); pointer-events: none;
+}
+
+
+/* ========================================================================== */
+/* 13) MEDIA QUERIES                                                          */
+/* ========================================================================== */
+
+/* Grilles & layout responsive */
+@media (max-width: 980px) {
+  .slots-container { grid-template-columns: repeat(3, 1fr); }
+  .cards          { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 720px) {
+  .slots-container { grid-template-columns: repeat(2, 1fr); }
+  .cards          { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .slots-container { grid-template-columns: 1fr; }
+}
+
+/* Menu burger : affichage sur mobile */
+@media (max-width: 900px) {
+  .nav-toggle { display: block; }
+
+  /* menu fermé par défaut */
+  .nav {
+    display: none;
+    position: absolute; top: 56px; right: 12px;
+    background: var(--bg);
+    border-radius: 10px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.35);
+    width: min(80vw, 320px);
+    padding: 8px; z-index: 1000;
+    flex-direction: column; align-items: stretch;
+  }
+  .nav.open { display: flex; }
+  .nav a { display: block; padding: 12px 14px; border-radius: 8px; }
+  .nav a:hover { background: rgba(255,255,255,.08); color: #fff; }
+}
+
+/* Formulaire: bouton full-width sur mobile */
+@media (max-width: 480px) {
+  .form-actions { justify-content: stretch; }
+  .form-actions .btn { width: 100%; }
+}
+
+/* Carousel responsive */
+@media (max-width: 640px) {
+  .carousel-viewport { border-radius: 12px; }
+  .carousel-btn { width: 48px; height: 48px; font-size: 26px; line-height: 48px; }
+  .carousel-btn.prev { left: 10px; }
+  .carousel-btn.next { right: 10px; }
+}
+/* ===== Accueil : CTA centré ===== */
+.home-cta{
+  display:flex;
+  justify-content:space-around;        /* centre horizontalement */
+  gap:16px;                      /* espace entre les boutons */
+  margin: 16px auto 0;           /* un peu d’air au-dessus */
+  max-width: 560px;              /* optionnel : évite d’être trop large */
+}
+
+.home-cta .btn{
+  min-width: 200px;              /* plus larges */
+  text-align: center;            /* texte centré */
+  padding: 12px 18px;            /* un peu plus haut */
+  font-size: 1rem;  
+  color: white;
+  text-decoration: none;             /* lisible */
+}
+
+@media (max-width:640px){
+  .home-cta{ flex-direction:column; }
+  .home-cta .btn{ width:100%; }   /* plein écran sur mobile */
+}
+/* ===== Error pages ===== */
+.error-page { text-align: center; }
+.error-title { font-size: clamp(22px, 3.2vw, 32px); margin: 4px 0 8px; }
+.error-message { color: var(--muted); margin: 0 0 12px; }
+.error-actions { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
+.error-details { margin-top: 12px; text-align: left; }
+.error-details summary { cursor: pointer; opacity: .9; }

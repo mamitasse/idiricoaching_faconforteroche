@@ -1,15 +1,15 @@
 <?php
 declare(strict_types=1);
 /** @var string $token */
-use function App\services\csrf_input;
-use function App\services\e;
+use function App\services\csrfInput;
+use function App\services\escapeHtml;
 ?>
 <section class="card" style="max-width:520px;margin:auto">
   <h1>Réinitialiser le mot de passe</h1>
 
   <form method="post" action="<?= BASE_URL ?>?action=resetPasswordPost" class="form">
-    <?= csrf_input() ?>
-    <input type="hidden" name="token" value="<?= e($token) ?>">
+    <?= csrfInput() ?>
+    <input type="hidden" name="token" value="<?= escapeHtml($token) ?>">
 
     <label>
       Nouveau mot de passe

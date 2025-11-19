@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\views;
 
 use RuntimeException;
-use function App\services\consume_flash;
+use function App\services\consumeFlashes;
 
 /**
  * View
@@ -24,7 +24,7 @@ final class View
     public static function render(string $viewName, array $data = []): void
     {
         // 1) Récupère les messages flash (et les vide)
-        $flashes = consume_flash();
+        $flashes = consumeFlashes();
 
         // 2) Prépare les variables pour la vue
         $title = $data['title'] ?? 'Idiri Coaching';
