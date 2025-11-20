@@ -297,7 +297,10 @@ final class AuthController
         if (!$userRow) {
             flash('success', 'Si cet e-mail existe, un lien de réinitialisation a été envoyé.');
             $this->redirectTo('?action=connexion');
+
+
         }
+
 
         // Génère/pose le token + expiration (+1h)
         $token   = $userManager->setPasswordResetToken((int)$userRow['id']);

@@ -25,7 +25,7 @@ use function App\services\capitalizeWords;
   </p>
 
   <section class="card">
-    <form method="get" action="" class="form" style="display:grid; grid-template-columns:1fr; gap:12px; max-width:360px;">
+    <form method="get" action="" class="form" >
       <input type="hidden" name="action" value="coachDashboard">
       <label>
         Sélectionner une date
@@ -87,7 +87,7 @@ use function App\services\capitalizeWords;
     <?php if (empty($adherents)): ?>
       <p class="subtitle">Aucun adhérent rattaché pour le moment.</p>
     <?php else: ?>
-      <label style="display:block; max-width:520px;">
+      <label >
         Choisir un adhérent
         <select
           name="id"

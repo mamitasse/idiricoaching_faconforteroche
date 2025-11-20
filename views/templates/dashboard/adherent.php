@@ -35,7 +35,7 @@ function dateFrFromYmd(string $ymd): string {
 
 
 <section class="card">
-  <form method="get" action="" class="form" style="display:grid; grid-template-columns:1fr; gap:12px; max-width:360px;">
+  <form method="get" action="" class="form" >
     <input type="hidden" name="action" value="adherentDashboard">
     <label>
       Sélectionner une date

@@ -25,7 +25,7 @@ use function App\services\csrfInput;
     <div class="form-actions">
       <button class="btn btn-primary" type="submit">Se connecter</button>
     </div>
-    <p class="subtitle" style="margin-top:8px">
+    <p class="subtitle">
       <a href="<?= BASE_URL ?>?action=forgotPassword">Mot de passe oublié ?</a>
     </p>
 

@@ -12,15 +12,18 @@ use InvalidArgumentException;
  * -------------------------
  * - Nommage camelCase
  * - Méthodes explicites
- * - Docblocks clairs
+ * - ENTITÉS (UserEntity) pour la plupart du code
+ * - Méthodes spéciales pour "mot de passe oublié"
  *
  * Contenu :
- *  - ENTITÉS : findEntityById(), findEntityByEmail(), listEntitiesByRole(), ...
- *  - CRUD : create(), createEntity(), updatePasswordHash()
+ *  - ENTITÉS :
+ *      findEntityById(), findEntityByEmail(), listEntitiesByRole(),
+ *      coachesEntities(), adherentsOfCoachEntities()
+ *  - CRUD :
+ *      create(), createEntity(), updatePasswordHash(), updatePassword()
  *  - Mot de passe oublié :
  *      findByEmail(), findByResetToken(),
- *      setPasswordResetToken(), clearPasswordResetToken(),
- *      updatePassword() (version “texte clair” -> hash ici)
+ *      setPasswordResetToken(), clearPasswordResetToken()
  */
 final class UserManager extends DBManager
 {
@@ -28,7 +31,9 @@ final class UserManager extends DBManager
      * Helpers internes
      * ======================================================= */
 
-    /** Convertit un row PDO en UserEntity. */
+    /**
+     * Convertit une ligne SQL (array) en UserEntity.
+     */
     private function toEntity(?array $row): ?UserEntity
     {
         if (!$row) {
@@ -38,21 +43,27 @@ final class UserManager extends DBManager
     }
 
     /**
-     * Retourne un hash robuste à stocker.
-     * - Si $data['password_hash'] contient déjà un vrai hash (bcrypt/argon) → on garde
-     * - Sinon si $data['password'] (clair) existe → on hash avec PASSWORD_DEFAULT
+     * Retourne un hash de mot de passe robuste à stocker.
+     *
+     * - Si $data['password_hash'] contient déjà un vrai hash → on le garde
+     * - Sinon si $data['password'] (clair) existe → on hash ici
      */
     private function ensureHash(array $data): string
     {
+        // Cas 1 : on a déjà un hash valide dans password_hash
         if (!empty($data['password_hash'])) {
             $info = password_get_info((string)$data['password_hash']);
             if (($info['algo'] ?? 0) !== 0) {
+                // C'est déjà un hash (bcrypt/argon, etc.)
                 return (string)$data['password_hash'];
             }
         }
+
+        // Cas 2 : on a un mot de passe en clair
         if (empty($data['password'])) {
             throw new InvalidArgumentException('password manquant pour création utilisateur');
         }
+
         return password_hash((string)$data['password'], PASSWORD_DEFAULT);
     }
 
@@ -60,63 +71,118 @@ final class UserManager extends DBManager
      * ENTITÉS (orienté domaine)
      * ======================================================= */
 
-    /** Récupère une entité par id. */
+    /**
+     * Récupère une entité par id.
+     */
     public function findEntityById(int $id): ?UserEntity
     {
-        $st = $this->db()->prepare('SELECT * FROM users WHERE id = :id');
-        $st->execute([':id' => $id]);
-        return $this->toEntity($st->fetch(PDO::FETCH_ASSOC) ?: null);
+        $sql = 'SELECT * FROM users WHERE id = :id';
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':id' => $id]);
+
+        return $this->toEntity($statement->fetch(PDO::FETCH_ASSOC) ?: null);
     }
 
-    /** Récupère une entité par email. */
+    /**
+     * Récupère une entité par email.
+     */
     public function findEntityByEmail(string $email): ?UserEntity
     {
-        $st = $this->db()->prepare('SELECT * FROM users WHERE email = :e LIMIT 1');
-        $st->execute([':e' => strtolower(trim($email))]);
-        return $this->toEntity($st->fetch(PDO::FETCH_ASSOC) ?: null);
+        $sql = 'SELECT * FROM users WHERE email = :e LIMIT 1';
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':e' => strtolower(trim($email))]);
+
+        return $this->toEntity($statement->fetch(PDO::FETCH_ASSOC) ?: null);
     }
 
-    /** Liste d’entités par rôle (coach/adherent). */
+    /**
+     * Liste d’entités par rôle (coach/adherent).
+     */
     public function listEntitiesByRole(string $role): array
     {
-        $st = $this->db()->prepare('SELECT * FROM users WHERE role = :r ORDER BY first_name, last_name');
-        $st->execute([':r' => $role]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        return array_map(fn(array $r) => $this->toEntity($r), $rows);
+        $sql = 'SELECT * FROM users WHERE role = :r ORDER BY first_name, last_name';
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':r' => $role]);
+
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return array_map(
+            fn(array $row) => $this->toEntity($row),
+            $rows
+        );
     }
 
-    /** Raccourci : tous les coachs (entités). */
+    /**
+     * Raccourci : tous les coachs (entités).
+     */
     public function coachesEntities(): array
     {
         return $this->listEntitiesByRole('coach');
     }
 
-    /** Tous les adhérents rattachés à un coach (entités). */
+    /**
+     * Tous les adhérents rattachés à un coach (entités).
+     */
     public function adherentsOfCoachEntities(int $coachId): array
     {
-        $st = $this->db()->prepare(
-            'SELECT * FROM users WHERE role = "adherent" AND coach_id = :c ORDER BY first_name, last_name'
+        $sql = 'SELECT * FROM users
+                WHERE role = "adherent"
+                  AND coach_id = :c
+                ORDER BY first_name, last_name';
+
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':c' => $coachId]);
+
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return array_map(
+            fn(array $row) => $this->toEntity($row),
+            $rows
         );
-        $st->execute([':c' => $coachId]);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
-        return array_map(fn(array $r) => $this->toEntity($r), $rows);
     }
 
     /* =========================================================
      * ÉCRITURES / CRUD
      * ======================================================= */
 
-    /** Crée un utilisateur et retourne l’ID inséré. */
+    /**
+     * Crée un utilisateur et retourne l’ID inséré.
+     */
     public function create(array $data): int
     {
         $passwordHash = $this->ensureHash($data);
 
-        $sql = 'INSERT INTO users
-                (first_name, last_name, email, password_hash, phone, address, role, gender, age, coach_id, created_at, updated_at)
-                VALUES
-                (:fn, :ln, :em, :ph, :phn, :addr, :role, :gender, :age, :coach, NOW(), NOW())';
+        $sql = 'INSERT INTO users (
+                    first_name,
+                    last_name,
+                    email,
+                    password_hash,
+                    phone,
+                    address,
+                    role,
+                    gender,
+                    age,
+                    coach_id,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :fn,
+                    :ln,
+                    :em,
+                    :ph,
+                    :phn,
+                    :addr,
+                    :role,
+                    :gender,
+                    :age,
+                    :coach,
+                    NOW(),
+                    NOW()
+                )';
 
-        $ok = $this->db()->prepare($sql)->execute([
+        $statement = $this->db()->prepare($sql);
+
+        $ok = $statement->execute([
             ':fn'     => trim((string)($data['first_name'] ?? '')),
             ':ln'     => trim((string)($data['last_name']  ?? '')),
             ':em'     => trim(strtolower((string)($data['email'] ?? ''))),
@@ -132,37 +198,58 @@ final class UserManager extends DBManager
         return $ok ? (int)$this->db()->lastInsertId() : 0;
     }
 
-    /** Crée et renvoie l’entité créée (pratique côté contrôleur). */
+    /**
+     * Crée et renvoie l’entité créée (pratique côté contrôleur).
+     */
     public function createEntity(array $data): UserEntity
     {
-        $id = $this->create($data);
+        $id     = $this->create($data);
         $entity = $this->findEntityById($id);
+
         if (!$entity) {
             throw new \RuntimeException('Création utilisateur échouée');
         }
+
         return $entity;
     }
 
-    /** Met à jour le hash du mot de passe (hash déjà calculé). */
+    /**
+     * Met à jour le hash du mot de passe (hash déjà calculé).
+     */
     public function updatePasswordHash(int $id, string $newHash): bool
     {
-        $st = $this->db()->prepare(
-            'UPDATE users SET password_hash = :h, updated_at = NOW() WHERE id = :id'
-        );
-        return $st->execute([':h' => $newHash, ':id' => $id]);
+        $sql = 'UPDATE users
+                SET password_hash = :h,
+                    updated_at    = NOW()
+                WHERE id = :id';
+
+        $statement = $this->db()->prepare($sql);
+
+        return $statement->execute([
+            ':h'  => $newHash,
+            ':id' => $id,
+        ]);
     }
 
     /**
-     * Met à jour le mot de passe à partir du clair (hash ici).
-     * Utile pour la phase de reset.
+     * Met à jour le mot de passe à partir du clair (hash fait ici).
+     * Utilisé pour la phase de reset.
      */
     public function updatePassword(int $id, string $plainPassword): bool
     {
         $hash = password_hash($plainPassword, PASSWORD_DEFAULT);
-        $st = $this->db()->prepare(
-            'UPDATE users SET password_hash = :h, updated_at = NOW() WHERE id = :id'
-        );
-        return $st->execute([':h' => $hash, ':id' => $id]);
+
+        $sql = 'UPDATE users
+                SET password_hash = :h,
+                    updated_at    = NOW()
+                WHERE id = :id';
+
+        $statement = $this->db()->prepare($sql);
+
+        return $statement->execute([
+            ':h'  => $hash,
+            ':id' => $id,
+        ]);
     }
 
     /* =========================================================
@@ -175,9 +262,13 @@ final class UserManager extends DBManager
      */
     public function findByEmail(string $email): ?array
     {
-        $st = $this->db()->prepare('SELECT * FROM users WHERE email = :e LIMIT 1');
-        $st->execute([':e' => strtolower(trim($email))]);
-        $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+        $sql = 'SELECT * FROM users WHERE email = :e LIMIT 1';
+
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':e' => strtolower(trim($email))]);
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC) ?: null;
+
         return $row ?: null;
     }
 
@@ -187,42 +278,65 @@ final class UserManager extends DBManager
      */
     public function setPasswordResetToken(int $userId, int $ttlMinutes = 60): string
     {
-        $token    = bin2hex(random_bytes(32)); // 64 chars
+        $token    = bin2hex(random_bytes(32)); // 64 caractères hex
         $expireAt = (new DateTime("+{$ttlMinutes} minutes"))->format('Y-m-d H:i:s');
 
-        $sql = "UPDATE users
-                SET reset_token = :t, reset_expires_at = :e, updated_at = NOW()
-                WHERE id = :id";
-        $st  = $this->db()->prepare($sql);
-        $st->execute([':t' => $token, ':e' => $expireAt, ':id' => $userId]);
+        $sql = 'UPDATE users
+                SET reset_token      = :t,
+                    reset_expires_at = :e,
+                    updated_at       = NOW()
+                WHERE id = :id';
+
+        $statement = $this->db()->prepare($sql);
+
+        $ok = $statement->execute([
+            ':t'  => $token,
+            ':e'  => $expireAt,
+            ':id' => $userId,
+        ]);
+
+        if (!$ok) {
+            throw new \RuntimeException(
+                'Impossible de mettre à jour le token de réinitialisation pour l\'utilisateur ' . $userId
+            );
+        }
 
         return $token;
     }
 
     /**
-     * Retourne l'utilisateur par token de reset encore valide.
-     * (NULL si expiré ou inconnu)
+     * Retourne l'utilisateur par token de reset encore valide (array).
+     * Renvoie NULL si token expiré ou inconnu.
      */
     public function findByResetToken(string $token): ?array
     {
-        $sql = "SELECT * FROM users
+        $sql = 'SELECT * FROM users
                 WHERE reset_token = :t
                   AND reset_expires_at IS NOT NULL
                   AND reset_expires_at >= NOW()
-                LIMIT 1";
-        $st  = $this->db()->prepare($sql);
-        $st->execute([':t' => $token]);
-        $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+                LIMIT 1';
+
+        $statement = $this->db()->prepare($sql);
+        $statement->execute([':t' => $token]);
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC) ?: null;
+
         return $row ?: null;
     }
 
-    /** Supprime le token de reset (après utilisation). */
+    /**
+     * Supprime le token de reset (après utilisation).
+     */
     public function clearPasswordResetToken(int $userId): bool
     {
-        $sql = "UPDATE users
-                SET reset_token = NULL, reset_expires_at = NULL, updated_at = NOW()
-                WHERE id = :id";
-        $st  = $this->db()->prepare($sql);
-        return $st->execute([':id' => $userId]);
+        $sql = 'UPDATE users
+                SET reset_token      = NULL,
+                    reset_expires_at = NULL,
+                    updated_at       = NOW()
+                WHERE id = :id';
+
+        $statement = $this->db()->prepare($sql);
+
+        return $statement->execute([':id' => $userId]);
     }
 }
